@@ -1,15 +1,17 @@
 class AppUser {
-  final String id, name, email, role;
+  final String id;
+  final String? name;
   final String? studentId;
-  AppUser({required this.id, required this.name, required this.email, required this.role, this.studentId});
+  final String email;
+  final String role;
 
-  factory AppUser.fromJson(Map<String,dynamic> j){
-    return AppUser(
-      id: j['id'] ?? j['_id'],
-      name: j['name'],
-      email: j['email'],
-      role: j['role'],
-      studentId: j['studentId'],
-    );
-  }
+  AppUser({required this.id, required this.email, required this.role, this.name, this.studentId});
+
+  factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
+        id: j['id'] ?? j['_id'],
+        name: j['name'],
+        studentId: j['studentId'],
+        email: j['email'],
+        role: j['role'] ?? 'student',
+      );
 }

@@ -1,0 +1,8 @@
+cách chạy dự án:
+Bước 1: chạy api trước để có thể liên kết dữ liệu
+cd api 
+npm run dev
+
+Bước 2: chạy dự án 
+cd app
+flutter run 

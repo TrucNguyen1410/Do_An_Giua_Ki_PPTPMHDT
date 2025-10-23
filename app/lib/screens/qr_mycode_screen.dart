@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import '../services/activity_service.dart';
+import '../services/auth_service.dart';
 
 class MyQrScreen extends StatefulWidget { const MyQrScreen({super.key});
-  @override State<MyQrScreen> createState()=>_MyQrScreenState(); }
+  @override State<MyQrScreen> createState()=>_MyQrState(); }
 
-class _MyQrScreenState extends State<MyQrScreen>{
-  String? _token;
-  @override void initState(){ super.initState(); _load(); }
-  Future<void> _load() async {
-    try {
-      final t = await ActivityService().getAttendanceToken();
-      setState(()=>_token = t);
-    } catch(e){ if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
-  }
+class _MyQrState extends State<MyQrScreen>{
+  final _auth=AuthService(); late Future<String> _f;
 
-  @override Widget build(BuildContext ctx){
+  @override void initState(){ super.initState(); _f=_auth.getMyQrData(); }
+
+  @override Widget build(BuildContext context){
     return Scaffold(
       appBar: AppBar(title: const Text('QR điểm danh của tôi')),
       body: Center(
-        child: _token==null ? const CircularProgressIndicator() : QrImageView(data: _token!, version: QrVersions.auto, size: 260),
+        child: FutureBuilder<String>(
+          future: _f,
+          builder: (_,snap){
+            if(!snap.hasData) return const CircularProgressIndicator();
+            return SelectableText(snap.data!, textAlign: TextAlign.center);
+          }),
       ),
     );
   }
