@@ -1,182 +1,188 @@
-import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+// lib/screens/admin_scanner_screen.dart
 
-import '../models/activity.dart';
-import '../services/activity_service.dart';
+import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart'; // Import gói QR
+import '../services/api_client.dart'; // Import ApiClient để gọi API
 
 class AdminScannerScreen extends StatefulWidget {
-  const AdminScannerScreen({super.key});
+  final String activityId;
+  final String activityTitle;
+
+  const AdminScannerScreen({
+    Key? key,
+    required this.activityId,
+    required this.activityTitle,
+  }) : super(key: key);
 
   @override
-  State<AdminScannerScreen> createState() => _AdminScannerScreenState();
+  _AdminScannerScreenState createState() => _AdminScannerScreenState();
 }
 
 class _AdminScannerScreenState extends State<AdminScannerScreen> {
-  final _svc = ActivityService();
-  final MobileScannerController _controller = MobileScannerController();
+  String? _attendanceToken;
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  bool _busy = false;            // chặn quét liên tiếp
-  String? _activityId;           // id hoạt động đang chọn
-  List<Activity> _activities = []; // danh sách hoạt động để chọn
+  // Sử dụng ApiClient để gọi API
+  // Bạn không cần Provider ở đây vì đây là một hành động (action)
+  // không phải là quản lý một state toàn cục
+  final ApiClient _apiClient = ApiClient();
 
   @override
   void initState() {
     super.initState();
-    _loadActivities();
+    // Tải token lần đầu tiên khi màn hình được mở
+    _generateQrToken();
   }
 
-  Future<void> _loadActivities() async {
+  // Hàm gọi API để lấy token
+  Future<void> _generateQrToken() async {
+    // Đặt lại trạng thái
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _attendanceToken = null; // Xóa token cũ
+    });
+
     try {
-      // Admin có thể điểm danh cho hoạt động đã mở (hoặc tất cả). Ở đây lấy tất cả.
-      final list = await _svc.list(openOnly: false);
-      if (!mounted) return;
+      // Gọi API mà chúng ta đã tạo bên backend (api/routes/admin.js)
+      // POST api/admin/activities/:id/generate-qr
+      final response = await _apiClient.post(
+        'admin/activities/${widget.activityId}/generate-qr',
+        {}, // Không cần body
+      );
+
+      if (response['attendanceToken'] == null) {
+        throw Exception('Không nhận được token từ server.');
+      }
+
+      // Lưu token và cập nhật UI
       setState(() {
-        _activities = list;
-        if (_activities.isNotEmpty) {
-          _activityId ??= _activities.first.id;
-        }
+        _attendanceToken = response['attendanceToken'];
+        _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Lỗi tải hoạt động: $e')));
+      // Báo lỗi
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
     }
-  }
-
-  Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_busy) return;
-    final String? code =
-        capture.barcodes.isNotEmpty ? capture.barcodes.first.rawValue : null;
-
-    if (code == null || _activityId == null) return;
-
-    setState(() => _busy = true);
-    try {
-      await _svc.adminCheckin(code, _activityId!);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✓ Điểm danh thành công')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi điểm danh: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final current = _activities.where((a) => a.id == _activityId).firstOrNull;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quét QR điểm danh'),
-        actions: [
-          IconButton(
-            onPressed: _loadActivities,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Tải lại hoạt động',
-          ),
-          IconButton(
-            onPressed: () => _controller.toggleTorch(),
-            icon: const Icon(Icons.flashlight_on),
-            tooltip: 'Bật/tắt đèn',
-          ),
-          IconButton(
-            onPressed: () => _controller.switchCamera(),
-            icon: const Icon(Icons.cameraswitch),
-            tooltip: 'Đổi camera',
-          ),
-        ],
+        title: const Text('Tạo mã QR Điểm danh'),
       ),
-      body: Column(
-        children: [
-          // Thanh chọn hoạt động
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.event_note),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _activityId,
-                    decoration: const InputDecoration(
-                      labelText: 'Chọn hoạt động',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: _activities
-                        .map((a) => DropdownMenuItem(
-                              value: a.id,
-                              child: Text(a.title, overflow: TextOverflow.ellipsis),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => _activityId = v),
-                  ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.activityTitle,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-          ),
-
-          // Khung camera quét
-          Expanded(
-            child: Stack(
-              children: [
-                MobileScanner(
-                  controller: _controller,
-                  onDetect: _onDetect,
-                ),
-                // viền hướng dẫn
-                Center(
-                  child: Container(
-                    width: 260,
-                    height: 260,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        width: 3,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-                if (_busy)
-                  Container(
-                    color: Colors.black.withOpacity(0.35),
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Thông tin hoạt động đang chọn
-          if (current != null)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                'Đang điểm danh: ${current.title} – ${current.location}',
                 textAlign: TextAlign.center,
               ),
-            ),
-        ],
+              const SizedBox(height: 32),
+              
+              // Vùng hiển thị QR Code
+              Container(
+                width: 250,
+                height: 250,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor,
+                    width: 1,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _buildQrContent(),
+              ),
+              const SizedBox(height: 24),
+              
+              // Hiển thị thông báo (quan trọng)
+              Text(
+                _isLoading 
+                  ? 'Đang tạo mã...' 
+                  : (_attendanceToken != null 
+                      ? 'Mã QR có hiệu lực trong 5 phút.' // Thông báo từ backend
+                      : 'Không thể tạo mã.'),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontStyle: FontStyle.italic,
+                  color: _errorMessage != null 
+                    ? Theme.of(context).colorScheme.error 
+                    : Theme.of(context).textTheme.bodySmall?.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              
+              // Hiển thị chi tiết lỗi nếu có
+              if (_errorMessage != null)
+                Text(
+                  _errorMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  textAlign: TextAlign.center,
+                ),
+              const SizedBox(height: 24),
+
+              // Nút "Tạo lại mã mới"
+              ElevatedButton.icon(
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tạo lại mã mới'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: _isLoading ? null : _generateQrToken, // Vô hiệu hóa khi đang tải
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
-}
 
-// tiện ích nhỏ cho null-safety
-extension _FirstOrNull<E> on Iterable<E> {
-  E? get firstOrNull => isEmpty ? null : first;
+  // Widget con để hiển thị nội dung bên trong khung QR
+  Widget _buildQrContent() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Icon(
+            Icons.error_outline,
+            color: Theme.of(context).colorScheme.error,
+            size: 80,
+          ),
+        ),
+      );
+    }
+
+    if (_attendanceToken != null) {
+      // Hiển thị mã QR
+      return Padding(
+        padding: const EdgeInsets.all(12.0), // Tạo khoảng đệm cho mã QR
+        child: QrImageView(
+          data: _attendanceToken!,
+          version: QrVersions.auto,
+          size: 220.0, // Kích thước QR bên trong container 250
+        ),
+      );
+    }
+
+    // Trường hợp không mong muốn
+    return const Center(child: Text('Đã xảy ra lỗi không xác định.'));
+  }
 }

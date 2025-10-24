@@ -1,48 +1,144 @@
+// lib/screens/login_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import 'student_home.dart';
-import 'admin_home.dart';
-import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final void Function(bool)? onThemeToggle;
-  const LoginScreen({super.key, this.onThemeToggle});
-  @override State<LoginScreen> createState()=>_LoginState();
+  const LoginScreen({super.key});
+
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginState extends State<LoginScreen>{
-  final _email = TextEditingController();
-  final _pass = TextEditingController();
-  bool _loading=false;
-  final _auth = AuthService();
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  String _errorMessage = '';
 
   Future<void> _submit() async {
-    setState(()=>_loading=true);
-    try{
-      final u = await _auth.login(_email.text.trim(), _pass.text.trim());
-      if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(
-        builder: (_)=> u.role=='admin' ? AdminHome(onThemeToggle: widget.onThemeToggle)
-                                       : StudentHome(onThemeToggle: widget.onThemeToggle),
-      ));
-    }catch(e){ if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
-    setState(()=>_loading=false);
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      await Provider.of<AuthService>(context, listen: false).login(
+        _emailController.text,
+        _passwordController.text,
+      );
+      // Nếu đăng nhập thành công, Consumer trong main.dart sẽ tự động điều hướng
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    } finally {
+      if (mounted) { // Kiểm tra widget còn tồn tại
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
-  @override Widget build(BuildContext ctx){
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Đăng nhập')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          TextField(controller:_email, decoration: const InputDecoration(labelText:'Email')),
-          TextField(controller:_pass, decoration: const InputDecoration(labelText:'Mật khẩu'), obscureText: true),
-          const SizedBox(height:12),
-          ElevatedButton(onPressed: _loading?null:_submit, child: Text(_loading?'Đang xử lý...':'Đăng nhập')),
-          TextButton(onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_)=> const RegisterScreen()));
-          }, child: const Text('Chưa có tài khoản? Đăng ký'))
-        ]),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Chào mừng trở lại!',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 32),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập email';
+                    }
+                    if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
+                      return 'Email không hợp lệ';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập mật khẩu';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                if (_errorMessage.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Text(
+                      _errorMessage,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _submit,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text('Đăng nhập'),
+                        ),
+                      ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    // Điều hướng đến màn hình Đăng ký
+                    Navigator.of(context).pushNamed('/register');
+                  },
+                  child: const Text('Chưa có tài khoản? Đăng ký ngay'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

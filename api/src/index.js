@@ -1,53 +1,50 @@
-import "dotenv/config";
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+// api/src/index.js
 
-import authRoutes from "./routes/auth.js";
-import activitiesRoutes from "./routes/activities.js";
-import adminRoutes from "./routes/admin.js";
-import User from "./models/User.js";
+import express from 'express';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import cors from 'cors'; // QUAN TRỌNG: Để Flutter App gọi được API
 
+// Import các routes (đã sửa sang ESM)
+import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
+// (Bạn cần tạo và import file activities.js cho các route của student)
+// import activityRoutes from './routes/activities.js'; 
+
+// === CÀI ĐẶT ===
+dotenv.config(); // Đọc file .env
 const app = express();
-app.use(cors({
-  origin: (process.env.CORS_ORIGIN || "").split(","),
-  credentials: true,
-}));
-app.use(express.json());
-app.use(cookieParser());
+// Đọc cổng từ file .env, nếu không có thì mặc định là 4000
+const PORT = process.env.PORT || 4000; 
 
-app.get("/", (_req, res) => res.json({ ok: true, service: "CNIT Activities API" }));
-app.use("/auth", authRoutes);
-app.use("/activities", activitiesRoutes);
-app.use("/admin", adminRoutes);
-
-const start = async () => {
+// === KẾT NỐI MONGODB ===
+const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log("✅ Connected:", process.env.MONGODB_URI);
-
-    // seed admin
-    const adminEmail = `admin@${process.env.ALLOWED_EMAIL_DOMAIN}`;
-    const exists = await User.findOne({ email: adminEmail });
-    if (!exists) {
-      const passwordHash = await bcrypt.hash("Admin@123", 10);
-      await User.create({
-        name: "Admin Khoa CNTT",
-        email: adminEmail,
-        role: "admin",
-        passwordHash,
-      });
-      console.log("👑 Seeded admin:", adminEmail, "pass=Admin@123");
-    }
-
-    app.listen(process.env.PORT, () =>
-      console.log(`🚀 API running at http://localhost:${process.env.PORT}`)
-    );
-  } catch (e) {
-    console.error("❌ Error:", e);
+    // Đảm bảo file .env của bạn có MONGO_URI
+    await mongoose.connect(process.env.MONGO_URI);
+    // Đây là log chính xác
+    console.log('MongoDB đã kết nối thành công! (Connected to MongoDB)'); 
+  } catch (err) {
+    console.error('Lỗi kết nối MongoDB:', err.message);
+    process.exit(1);
   }
 };
+connectDB(); // Gọi hàm kết nối
 
-start();
+// === MIDDLEWARES ===
+app.use(cors()); // <-- DÒNG BỊ THIẾU
+app.use(express.json()); // Cho phép server đọc req.body dạng JSON
+
+// === ĐỊNH NGHĨA ROUTES ===
+// Đây là phần quan trọng nhất bị thiếu
+app.use('/api/auth', authRoutes); // <-- DÒNG BỊ THIẾU
+app.use('/api/admin', adminRoutes);
+// app.use('/api/activities', activitiesRoutes);
+
+// Route cơ bản để kiểm tra
+app.get('/', (req, res) => res.send('API đang chạy...'));
+
+// === KHỞI ĐỘNG SERVER ===
+app.listen(PORT, () => {
+  console.log(`Server đang chạy trên cổng ${PORT}`);
+});

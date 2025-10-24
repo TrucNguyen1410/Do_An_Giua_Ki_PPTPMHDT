@@ -1,33 +1,182 @@
-import express from "express";
-import auth from "../middlewares/auth.js";
-import Activity from "../models/Activity.js";
-import Registration from "../models/Registration.js";
+// api/src/routes/admin.js
 
+import express from 'express';
+import jwt from 'jsonwebtoken';
 const router = express.Router();
 
-// admin guard
-const isAdmin = (req, res, next) =>
-  req.user?.role === "admin" ? next() : res.status(403).json({ message: "Yêu cầu quyền admin" });
+// Import middleware (phải dùng .js)
+import auth from '../middlewares/auth.js';
 
-// create
-router.post("/activities", auth, isAdmin, async (req, res) => {
-  const a = await Activity.create({ ...req.body, createdBy: req.user.id, isClosed: false });
-  res.status(201).json(a);
-});
+// Import các Models (dùng import)
+import Activity from '../models/Activity.js';
+import Registration from '../models/Registration.js';
 
-// update
-router.put("/activities/:id", auth, isAdmin, async (req, res) => {
-  const a = await Activity.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  if (!a) return res.status(404).json({ message: "Không tìm thấy hoạt động" });
-  res.json(a);
-});
+/**
+ * =================================================================
+ * Middleware kiểm tra quyền Admin
+ * =================================================================
+ */
+const adminMiddleware = (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ msg: 'Truy cập bị từ chối. Yêu cầu quyền Admin.' });
+    }
+    next();
+  } catch (err) {
+    // Trả về JSON khi lỗi
+    res.status(401).json({ msg: 'Token không hợp lệ hoặc đã xảy ra lỗi quyền' });
+  }
+};
 
-// delete
-router.delete("/activities/:id", auth, isAdmin, async (req, res) => {
-  const a = await Activity.findByIdAndDelete(req.params.id);
-  if (!a) return res.status(404).json({ message: "Không tìm thấy hoạt động" });
-  await Registration.deleteMany({ activity: a._id });
-  res.json({ message: "Đã xóa hoạt động & đăng ký liên quan" });
-});
+/**
+ * =================================================================
+ * API CHO ADMIN (CRUD HOẠT ĐỘNG, TẠO QR, XEM SV)
+ * =================================================================
+ */
+
+// @route   POST api/admin/activities
+// @desc    Admin tạo hoạt động mới
+// @access  Private (Admin)
+router.post(
+  '/activities',
+  [auth, adminMiddleware],
+  async (req, res) => {
+    const { title, description, location, date } = req.body;
+    
+    try {
+      const newActivity = new Activity({
+        title,
+        description,
+        location,
+        date, // Dữ liệu date từ form Flutter đã là ISO string
+      });
+      const activity = await newActivity.save();
+      res.status(201).json(activity);
+    } catch (err) {
+      console.error('Lỗi POST /admin/activities:', err.message);
+      // Trả về JSON khi lỗi
+      res.status(500).json({ msg: 'Server Error - Không thể tạo hoạt động' });
+    }
+  }
+);
+
+// @route   GET api/admin/activities
+// @desc    Admin LẤY TẤT CẢ hoạt động
+// @access  Private (Admin)
+router.get(
+  '/activities',
+  [auth, adminMiddleware],
+  async (req, res) => {
+    try {
+      const activities = await Activity.find().sort({ createdAt: -1 }); // Sắp xếp mới nhất
+      res.json(activities);
+    } catch (err) {
+      console.error('Lỗi GET /admin/activities:', err.message);
+      res.status(500).json({ msg: 'Server Error - Không thể tải hoạt động' });
+    }
+  }
+);
+
+
+// @route   PUT api/admin/activities/:id
+// @desc    Admin cập nhật (sửa) hoạt động
+// @access  Private (Admin)
+router.put(
+  '/activities/:id',
+  [auth, adminMiddleware],
+  async (req, res) => {
+    try {
+      let activity = await Activity.findById(req.params.id);
+      if (!activity) {
+        return res.status(404).json({ msg: 'Hoạt động không tìm thấy' });
+      }
+      
+      activity = await Activity.findByIdAndUpdate(
+        req.params.id,
+        { $set: req.body }, // Lấy dữ liệu mới từ body
+        { new: true } // Trả về bản ghi đã cập nhật
+      );
+      res.json(activity);
+    } catch (err) {
+      console.error('Lỗi PUT /admin/activities/:id:', err.message);
+      res.status(500).json({ msg: 'Server Error - Không thể cập nhật' });
+    }
+  }
+);
+
+// @route   DELETE api/admin/activities/:id
+// @desc    Admin xóa hoạt động
+// @access  Private (Admin)
+router.delete(
+  '/activities/:id',
+  [auth, adminMiddleware],
+  async (req, res) => {
+    try {
+      const activity = await Activity.findById(req.params.id);
+      if (!activity) {
+        return res.status(404).json({ msg: 'Hoạt động không tìm thấy' });
+      }
+      
+      // Xóa các lượt đăng ký liên quan
+      await Registration.deleteMany({ activity: req.params.id });
+      
+      // Xóa hoạt động
+      await Activity.findByIdAndDelete(req.params.id);
+      
+      res.json({ msg: 'Hoạt động đã được xóa' });
+    } catch (err) {
+      console.error('Lỗi DELETE /admin/activities/:id:', err.message);
+      res.status(500).json({ msg: 'Server Error - Không thể xóa' });
+    }
+  }
+);
+
+// @route   POST api/admin/activities/:id/generate-qr
+// @desc    Admin tạo token điểm danh
+// @access  Private (Admin)
+router.post(
+  '/activities/:id/generate-qr',
+  [auth, adminMiddleware],
+  async (req, res) => {
+    try {
+      const activity = await Activity.findById(req.params.id);
+      if (!activity) {
+        return res.status(404).json({ msg: 'Hoạt động không tìm thấy' });
+      }
+
+      const attendanceToken = jwt.sign(
+        { activityId: activity._id },
+        process.env.JWT_SECRET, 
+        { expiresIn: '5m' } 
+      );
+
+      res.json({ attendanceToken });
+      
+    } catch (err) {
+      console.error('Lỗi POST /admin/.../generate-qr:', err.message);
+      res.status(500).json({ msg: 'Server Error' });
+    }
+  }
+);
+
+// @route   GET api/admin/activities/:id/registrations
+// @desc    Admin xem danh sách SV đã đăng ký
+// @access  Private (Admin)
+router.get(
+  '/activities/:id/registrations',
+  [auth, adminMiddleware],
+  async (req, res) => {
+    try {
+      const registrations = await Registration.find({ activity: req.params.id })
+        .populate('student', 'fullName email') 
+        .select('-activity');
+        
+      res.json(registrations);
+    } catch (err) {
+      console.error('Lỗi GET /admin/.../registrations:', err.message);
+      res.status(500).json({ msg: 'Server Error' });
+    }
+  }
+);
 
 export default router;

@@ -1,11 +1,38 @@
-import mongoose from "mongoose";
+// lib/models/User.js
 
-const schema = new mongoose.Schema({
-  name: { type: String, required: true },
-  studentId: { type: String },
-  email: { type: String, required: true, unique: true },
-  passwordHash: { type: String, required: true },
-  role: { type: String, enum: ["student", "admin"], default: "student" },
-}, { timestamps: true });
+import mongoose from 'mongoose'; // <-- Sửa 'require' thành 'import'
+const Schema = mongoose.Schema;
 
-export default mongoose.model("User", schema);
+/**
+ * Định nghĩa Schema cho người dùng (User)
+ */
+const UserSchema = new Schema({
+  fullName: {
+    type: String,
+    required: [true, 'Họ tên là bắt buộc'],
+  },
+  email: {
+    type: String,
+    required: [true, 'Email là bắt buộc'],
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/\S+@\S+\.\S+/, 'Email không hợp lệ'],
+  },
+  password: {
+    type: String,
+    required: [true, 'Mật khẩu là bắt buộc'],
+  },
+  role: {
+    type: String,
+    enum: ['student', 'admin'],
+    default: 'student',
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+// Sửa 'module.exports =' thành 'export default'
+export default mongoose.model('User', UserSchema);

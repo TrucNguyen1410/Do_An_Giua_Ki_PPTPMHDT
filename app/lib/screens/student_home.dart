@@ -1,86 +1,55 @@
+// lib/screens/student_home.dart
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../models/activity.dart';
-import '../services/activity_service.dart';
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import 'login_screen.dart';
-import 'setting_screen.dart';
+import 'setting_screen.dart'; // Dùng chung file setting
 
-class StudentHome extends StatefulWidget {
-  final void Function(bool)? onThemeToggle;
-  const StudentHome({super.key, this.onThemeToggle});
-  @override State<StudentHome> createState()=>_StudentHomeState();
-}
+class StudentHomeScreen extends StatelessWidget {
+  const StudentHomeScreen({super.key});
 
-class _StudentHomeState extends State<StudentHome>{
-  final _svc = ActivityService(); late Future<List<Activity>> _future;
-
-  @override void initState(){ super.initState(); _future=_svc.list(openOnly: true); }
-
-  Future<void> _register(Activity a) async {
-    try { await _svc.register(a.id); setState(()=> a.isRegistered = true); }
-    catch(e){ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
-  }
-  Future<void> _unregister(Activity a) async {
-    try { await _svc.unregister(a.id); setState(()=> a.isRegistered = false); }
-    catch(e){ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
-  }
-
-  @override Widget build(BuildContext ctx){
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Hoạt động đang mở'), actions: [
-        IconButton(icon: const Icon(Icons.refresh), onPressed: ()=> setState(()=> _future=_svc.list(openOnly:true))),
-      ]),
-      body: FutureBuilder<List<Activity>>(
-        future: _future,
-        builder: (_, snap){
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          final df = DateFormat('dd/MM/yyyy HH:mm');
-          final list = snap.data!;
-          if (list.isEmpty) return const Center(child: Text('Không có hoạt động mở'));
-
-          return ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (_,i){
-              final a=list[i];
-              return Card(
-                margin: const EdgeInsets.all(8),
-                child: ListTile(
-                  title: Text(a.title),
-                  subtitle: Text('${a.location}\n${df.format(a.startTime)} - ${df.format(a.endTime)}\nHạn: ${df.format(a.deadline)}'),
-                  isThreeLine: true,
-                  trailing: ElevatedButton(
-                    onPressed: a.isClosed ? null : ()=> a.isRegistered ? _unregister(a) : _register(a),
-                    style: ElevatedButton.styleFrom(backgroundColor: a.isRegistered? Colors.red : Colors.blue),
-                    child: Text(a.isRegistered? 'Hủy đăng ký' : 'Đăng ký', style: const TextStyle(color: Colors.white)),
-                  ),
-                ),
+      appBar: AppBar(
+        title: const Text('Trang chủ Sinh viên'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              // Điều hướng đến trang cài đặt
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => SettingScreen()),
               );
-            });
-        }),
-      floatingActionButton: FloatingActionButton(
-        onPressed: (){
-          Navigator.push(context, MaterialPageRoute(builder: (_)=> SettingScreen(onThemeToggle: widget.onThemeToggle)));
-        },
-        child: const Icon(Icons.settings),
-      ),
-      drawer: Drawer(
-        child: ListView(padding: EdgeInsets.zero, children: [
-          const DrawerHeader(child: Text('Tài khoản')),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Đăng xuất'),
-            onTap: () async {
-              await AuthService().logout();
-              if (mounted) {
-                Navigator.pushAndRemoveUntil(context,
-                  MaterialPageRoute(builder: (_)=> LoginScreen(onThemeToggle: widget.onThemeToggle)),
-                  (_)=>false);
-              }
             },
-          )
-        ]),
+          ),
+        ],
       ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+             Text('Chào mừng Sinh viên!', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              child: const Text('Xem Hoạt động (Chưa làm)'),
+              onPressed: () {
+                // TODO: Hiển thị danh sách hoạt động
+              },
+            ),
+             ElevatedButton(
+              child: const Text('Quét QR điểm danh'),
+              onPressed: () {
+                // Điều hướng đến màn hình quét QR
+                 Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => QrScannerScreen()), // Giả sử bạn đã có file này
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      // (Bạn có thể thêm BottomNavigationBar ở đây nếu muốn)
     );
   }
 }

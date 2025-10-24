@@ -1,2 +1,6 @@
-const String kApiBase = "http://10.0.2.2:4000"; // Android emulator
-// Nếu chạy thiết bị thật cùng Wi-Fi, đổi sang IP máy tính, vd: "http://192.168.1.15:4000"
+// lib/services/config.dart
+
+class Config {
+  // Sửa 3000 thành 4000
+  static const String baseUrl = 'http://10.0.2.2:4000/api'; 
+}

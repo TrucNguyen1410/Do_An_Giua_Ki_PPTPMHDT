@@ -1,53 +1,158 @@
-import express from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import User from "../models/User.js";
-import auth from "../middlewares/auth.js";
+// api/src/routes/auth.js
+
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { check, validationResult } from 'express-validator';
+import User from '../models/User.js'; // Đảm bảo model User cũng dùng export default
 
 const router = express.Router();
 
-// register (student)
-router.post("/register", async (req, res) => {
-  try {
-    const { name, studentId, email, password } = req.body;
-    if (!name || !studentId || !email || !password)
-      return res.status(400).json({ message: "Thiếu thông tin" });
+/**
+ * @route   POST api/auth/register
+ * @desc    Đăng ký (Dành cho Student - Phần này giữ nguyên)
+ */
+router.post(
+  '/register',
+  [
+    check('fullName', 'Họ tên là bắt buộc').not().isEmpty(),
+    check('email', 'Vui lòng nhập email hợp lệ').isEmail(),
+    check('password', 'Mật khẩu phải có ít nhất 6 ký tự').isLength({ min: 6 }),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-    const existed = await User.findOne({ email });
-    if (existed) return res.status(400).json({ message: "Email đã tồn tại" });
+    const { fullName, email, password } = req.body;
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, studentId, email, passwordHash, role: "student" });
+    // Chỉ cho phép email @sv.hcmunre.edu.vn đăng ký
+    if (!email.endsWith('@sv.hcmunre.edu.vn')) {
+      return res
+        .status(400)
+        .json({ errors: [{ msg: 'Chỉ chấp nhận email có đuôi @sv.hcmunre.edu.vn' }] });
+    }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.json({ token, user: { id: user._id, name, studentId, email, role: user.role } });
-  } catch (e) { res.status(500).json({ message: e.message }); }
-});
+    try {
+      let user = await User.findOne({ email });
+      if (user) {
+        return res.status(400).json({ errors: [{ msg: 'Email đã tồn tại' }] });
+      }
 
-// login
-router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const u = await User.findOne({ email });
-    if (!u) return res.status(400).json({ message: "Email không tồn tại" });
-    const ok = await bcrypt.compare(password, u.passwordHash);
-    if (!ok) return res.status(400).json({ message: "Sai mật khẩu" });
+      user = new User({
+        fullName,
+        email,
+        password,
+        role: 'student', // Đăng ký qua form luôn là 'student'
+      });
 
-    const token = jwt.sign({ id: u._id, role: u.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.json({ token, user: { id: u._id, name: u.name, studentId: u.studentId, email: u.email, role: u.role } });
-  } catch (e) { res.status(500).json({ message: e.message }); }
-});
+      // Băm mật khẩu cho student
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+      
+      await user.save();
 
-// profile
-router.get("/me", auth, async (req, res) => {
-  const u = await User.findById(req.user.id).select("-passwordHash");
-  if (!u) return res.status(404).json({ message: "Không tìm thấy user" });
-  res.json(u);
-});
+      const payload = {
+        user: {
+          id: user.id,
+          role: user.role,
+        },
+      };
 
-// my QR data (simple)
-router.get("/me/qr", auth, async (req, res) => {
-  res.json({ qrData: req.user.id.toString() });
-});
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET,
+        { expiresIn: 360000 },
+        (err, token) => {
+          if (err) {
+            console.error('Lỗi JWT Sign:', err);
+            return res.status(500).json({ msg: 'Lỗi khi tạo token' });
+          }
+          res.status(201).json({ token });
+        }
+      );
+    } catch (err) {
+      console.error('Lỗi khối Catch /register:', err.message);
+      if (err.code === 11000) {
+        return res.status(400).json({ errors: [{ msg: 'Email đã tồn tại (lỗi CSDL E11000)' }] });
+      }
+      res.status(500).json({ msg: 'Server error. Vui lòng thử lại.' });
+    }
+  }
+);
+
+/**
+ * @route   POST api/auth/login
+ * @desc    Đăng nhập (ĐÃ SỬA LOGIC)
+ */
+router.post(
+  '/login',
+  [
+    check('email', 'Vui lòng nhập email hợp lệ').isEmail(),
+    check('password', 'Mật khẩu là bắt buộc').exists(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body; // 'password' là văn bản thô, vd: "123456"
+
+    try {
+      // 1. Tìm user
+      let user = await User.findOne({ email });
+      if (!user) {
+        return res.status(400).json({ errors: [{ msg: 'Email hoặc mật khẩu không đúng' }] });
+      }
+
+      // === PHẦN LOGIC ĐÃ SỬA ===
+      let isMatch = false;
+
+      // Nếu user là 'admin' (bạn tạo thủ công trong CSDL)
+      if (user.role === 'admin') {
+        // So sánh mật khẩu thô (plain text)
+        // Ví dụ: "123456" (app gửi) == "123456" (trong CSDL)
+        isMatch = (password === user.password);
+      } 
+      // Nếu là 'student' (đăng ký qua app)
+      else {
+        // Dùng bcrypt để so sánh mật khẩu thô với mật khẩu đã băm
+        isMatch = await bcrypt.compare(password, user.password);
+      }
+      // ==========================
+
+      // Nếu không khớp
+      if (!isMatch) {
+        return res.status(400).json({ errors: [{ msg: 'Email hoặc mật khẩu không đúng' }] });
+      }
+
+      // 3. Nếu khớp, trả về JWT
+      const payload = {
+        user: {
+          id: user.id,
+          role: user.role,
+        },
+      };
+
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET,
+        { expiresIn: 360000 },
+        (err, token) => {
+          if (err) {
+            console.error('Lỗi JWT Sign /login:', err);
+            return res.status(500).json({ msg: 'Lỗi khi tạo token' });
+          }
+          res.json({ token });
+        }
+      );
+    } catch (err) {
+      console.error('Lỗi khối Catch /login:', err.message);
+      res.status(500).json({ msg: 'Server error. Vui lòng thử lại.' });
+    }
+  }
+);
 
 export default router;

@@ -1,23 +1,80 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+// Providers
+import 'providers/theme_provider.dart';
+import 'services/auth_service.dart';
+import 'services/activity_service.dart'; // <-- ĐÃ THÊM
+
+// Screens
 import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/admin_home.dart';
+import 'screens/student_home.dart';
+import 'screens/register_screen.dart';
+import 'screens/admin_manage_activities.dart'; // <-- ĐÃ THÊM
+import 'screens/setting_screen.dart'; // <-- ĐÃ THÊM
 
-void main() => runApp(const CNITApp());
+void main() {
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => ActivityService()), // <-- ĐÃ THÊM
+      ],
+      child: MyApp(),
+    ),
+  );
+}
 
-class CNITApp extends StatefulWidget { const CNITApp({super.key});
-  @override State<CNITApp> createState()=>_CNITAppState(); }
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-class _CNITAppState extends State<CNITApp>{
-  ThemeMode _mode = ThemeMode.light;
-  void _toggle(bool dark){ setState(()=> _mode = dark? ThemeMode.dark : ThemeMode.light); }
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
-  @override Widget build(BuildContext context){
     return MaterialApp(
-      title: 'CNIT Activities',
+      title: 'Quản lý Hoạt động',
+      theme: ThemeData.light(useMaterial3: true),
+      darkTheme: ThemeData.dark(useMaterial3: true),
+      themeMode: themeProvider.themeMode,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue, brightness: Brightness.light),
-      darkTheme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue, brightness: Brightness.dark),
-      themeMode: _mode,
-      home: SplashScreen(onThemeToggle: _toggle),
+
+      // Điều hướng chính của ứng dụng
+      home: Consumer<AuthService>(
+        builder: (context, authService, _) {
+          if (authService.isAuthLoading) {
+            // Đang kiểm tra token (tự động đăng nhập)
+            return SplashScreen();
+          }
+
+          if (authService.isAuthenticated) {
+            // Đã đăng nhập
+            if (authService.userRole == 'admin') {
+              return AdminHomeScreen(); // Điều hướng đến trang Admin
+            } else {
+              return StudentHomeScreen(); // Điều hướng đến trang Student
+            }
+          }
+
+          // Chưa đăng nhập
+          return LoginScreen();
+        },
+      ),
+
+      // Định nghĩa các route (đường dẫn) để tiện điều hướng
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/register': (context) => RegisterScreen(),
+        '/admin_home': (context) => AdminHomeScreen(),
+        '/student_home': (context) => StudentHomeScreen(),
+        '/admin_manage_activities': (context) => AdminManageActivitiesScreen(), // <-- ĐÃ THÊM
+        '/settings': (context) => SettingScreen(), // <-- ĐÃ THÊM
+      },
     );
   }
 }

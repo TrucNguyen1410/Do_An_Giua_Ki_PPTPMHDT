@@ -1,40 +1,72 @@
+// lib/screens/admin_home.dart
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import 'login_screen.dart';
-import 'setting_screen.dart';
-import 'activity_form.dart';
+import 'setting_screen.dart'; // Import màn hình Cài đặt
+import 'admin_manage_activities.dart'; // <-- ĐÃ THÊM
 
-class AdminHome extends StatefulWidget {
-  final void Function(bool)? onThemeToggle;
-  const AdminHome({super.key, this.onThemeToggle});
-  @override State<AdminHome> createState()=>_AdminHomeState();
-}
+class AdminHomeScreen extends StatelessWidget {
+  const AdminHomeScreen({super.key});
 
-class _AdminHomeState extends State<AdminHome>{
-  @override Widget build(BuildContext ctx){
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản trị hoạt động'), actions: [
-        IconButton(icon: const Icon(Icons.logout), onPressed: () async {
-          await AuthService().logout();
-          if (mounted) Navigator.pushAndRemoveUntil(context,
-              MaterialPageRoute(builder: (_)=> LoginScreen(onThemeToggle: widget.onThemeToggle)), (_)=>false);
-        }),
-      ]),
-      body: ListView(children: [
-        ListTile(
-          leading: const Icon(Icons.event_note),
-          title: const Text('Quản lý hoạt động'),
-          subtitle: const Text('Thêm, sửa, xóa hoạt động'),
-          onTap: (){
-            Navigator.push(context, MaterialPageRoute(builder: (_)=> const ActivityForm()));
-          },
+      appBar: AppBar(
+        title: const Text('Trang chủ Admin'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              // Điều hướng đến trang cài đặt
+              Navigator.of(context).pushNamed('/settings');
+            },
+          ),
+        ],
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Chào mừng Admin!',
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.list_alt),
+                label: const Text('Quản lý Hoạt động'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: () {
+                  // <-- ĐÃ CẬP NHẬT
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => AdminManageActivitiesScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Quét mã SV (Chưa làm)'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: () {
+                  // TODO: Navigator.push(...đến admin_scanner_screen.dart)
+                  // Màn hình này dùng để quét mã của SV, khác với màn hình tạo QR
+                },
+              ),
+            ],
+          ),
         ),
-      ]),
-      floatingActionButton: FloatingActionButton(
-        onPressed: (){
-          Navigator.push(context, MaterialPageRoute(builder: (_)=> SettingScreen(onThemeToggle: widget.onThemeToggle)));
-        },
-        child: const Icon(Icons.settings),
       ),
     );
   }

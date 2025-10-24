@@ -1,17 +1,35 @@
-class AppUser {
+// lib/models/user.dart
+
+
+class User {
   final String id;
-  final String? name;
-  final String? studentId;
+  final String fullName;
   final String email;
   final String role;
 
-  AppUser({required this.id, required this.email, required this.role, this.name, this.studentId});
+  User({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.role,
+  });
 
-  factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
-        id: j['id'] ?? j['_id'],
-        name: j['name'],
-        studentId: j['studentId'],
-        email: j['email'],
-        role: j['role'] ?? 'student',
-      );
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['_id'],
+      fullName: json['fullName'],
+      email: json['email'],
+      role: json['role'],
+    );
+  }
+
+  // Chúng ta có thể không cần cái này nhiều
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'fullName': fullName,
+      'email': email,
+      'role': role,
+    };
+  }
 }
