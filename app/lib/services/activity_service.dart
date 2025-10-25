@@ -1,83 +1,79 @@
 // lib/services/activity_service.dart
-
-import 'package:flutter/material.dart';
+import '../models/activity.dart';
 import 'api_client.dart';
-import '../models/activity.dart'; 
 
-class ActivityService extends ChangeNotifier {
+class ActivityService {
   final ApiClient _apiClient = ApiClient();
 
-  List<Activity> _activities = [];
-  bool _isLoading = false;
+  // --- STUDENT METHODS ---
 
-  List<Activity> get activities => _activities;
-  bool get isLoading => _isLoading;
-
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  // (Admin) Lấy tất cả hoạt động
-  Future<void> fetchActivitiesAdmin() async {
-    _setLoading(true);
+  Future<List<Activity>> fetchActivities() async {
     try {
-      // Gọi đúng route: 'admin/activities'
-      final responseData = await _apiClient.get('admin/activities'); 
-      
-      final List<dynamic> activityList = responseData;
-      _activities = activityList.map((data) => Activity.fromJson(data)).toList();
-      
+      final List<dynamic> responseData = await _apiClient.get('activities');
+      return Activity.listFromJson(responseData);
     } catch (e) {
-      print('Lỗi khi tải hoạt động (Admin): $e');
-      rethrow; // Ném lỗi gốc ra
-    } finally {
-      _setLoading(false);
+      throw Exception('Lỗi tải danh sách hoạt động: $e');
     }
   }
 
-  // (Admin) Tạo hoạt động mới
-  Future<void> createActivity(Map<String, dynamic> activityData) async {
+  Future<List<Activity>> fetchMyHistory() async {
     try {
-      final newActivityData = await _apiClient.post('admin/activities', activityData);
-      
-      final newActivity = Activity.fromJson(newActivityData);
-      _activities.insert(0, newActivity);
-      
-      notifyListeners();
+      final List<dynamic> responseData = await _apiClient.get('activities/my-history');
+      return Activity.listFromJson(responseData);
     } catch (e) {
-      print('Lỗi khi tạo hoạt động: $e');
-      rethrow; // Ném lỗi gốc ra
+      throw Exception('Lỗi tải lịch sử hoạt động: $e');
     }
   }
 
-  // (Admin) Cập nhật hoạt động
-  Future<void> updateActivity(String id, Map<String, dynamic> activityData) async {
+  Future<void> registerForActivity(String activityId) async {
     try {
-      final updatedActivityData = await _apiClient.put('admin/activities/$id', activityData);
-      
-      final updatedActivity = Activity.fromJson(updatedActivityData);
-      final index = _activities.indexWhere((act) => act.id == id);
-      if (index != -1) {
-        _activities[index] = updatedActivity;
-        notifyListeners();
-      }
+      await _apiClient.post('activities/$activityId/register', {});
     } catch (e) {
-      print('Lỗi khi cập nhật hoạt động: $e');
-      rethrow; // Ném lỗi gốc ra
+      throw Exception('Lỗi đăng ký: $e');
     }
   }
 
-  // (Admin) Xóa hoạt động
+  Future<void> unregisterFromActivity(String activityId) async {
+    try {
+      await _apiClient.post('activities/$activityId/unregister', {});
+    } catch (e) {
+      throw Exception('Lỗi hủy đăng ký: $e');
+    }
+  }
+
+  // --- ADMIN METHODS (CÁC HÀM BỊ THIẾU) ---
+
+  // Hàm fetchActivitiesAdmin (gọi chung hàm fetchActivities)
+  Future<List<Activity>> fetchActivitiesAdmin() async {
+    return fetchActivities(); 
+  }
+
+  // Hàm tạo hoạt động
+  Future<Activity> createActivity(Map<String, dynamic> data) async {
+    try {
+      final responseData = await _apiClient.post('activities', data);
+      return Activity.fromJson(responseData);
+    } catch (e) {
+      throw Exception('Lỗi tạo hoạt động: $e');
+    }
+  }
+
+  // Hàm cập nhật hoạt động
+  Future<Activity> updateActivity(String id, Map<String, dynamic> data) async {
+    try {
+      final responseData = await _apiClient.put('activities/$id', data);
+      return Activity.fromJson(responseData);
+    } catch (e) {
+      throw Exception('Lỗi cập nhật hoạt động: $e');
+    }
+  }
+
+  // Hàm xóa hoạt động
   Future<void> deleteActivity(String id) async {
     try {
-      await _apiClient.delete('admin/activities/$id');
-      
-      _activities.removeWhere((act) => act.id == id);
-      notifyListeners();
+      await _apiClient.delete('activities/$id');
     } catch (e) {
-      print('Lỗi khi xóa hoạt động: $e');
-      rethrow; // Ném lỗi gốc ra
+      throw Exception('Lỗi xóa hoạt động: $e');
     }
   }
 }

@@ -1,37 +1,32 @@
-// api/models/Activity.js
-
+// src/models/Activity.js
 import mongoose from 'mongoose';
-const Schema = mongoose.Schema;
 
-const ActivitySchema = new Schema(
+const activitySchema = new mongoose.Schema(
   {
-    title: {
+    name: {
       type: String,
-      required: [true, 'Tiêu đề là bắt buộc'],
+      required: true,
+      trim: true,
     },
     description: {
       type: String,
-      required: [true, 'Mô tả là bắt buộc'],
+      required: true,
+      trim: true,
+    },
+    date: {
+      type: Date,
+      required: true,
     },
     location: {
       type: String,
-      required: [true, 'Địa điểm là bắt buộc'],
+      required: true,
+      trim: true,
     },
-    date: {
-      type: Date, // Yêu cầu kiểu dữ liệu Date
-      required: [true, 'Ngày diễn ra là bắt buộc'],
-    },
-    // (Bạn có thể thêm người tạo nếu muốn)
-    // creator: {
-    //   type: Schema.Types.ObjectId,
-    //   ref: 'User',
-    // },
   },
   {
-    // Tự động thêm 'createdAt' và 'updatedAt'
     timestamps: true,
   }
 );
 
-// Quan trọng: Phải dùng 'export default'
-export default mongoose.model('Activity', ActivitySchema);
+// Dùng 'export default' thay vì 'module.exports'
+export default mongoose.model('Activity', activitySchema);

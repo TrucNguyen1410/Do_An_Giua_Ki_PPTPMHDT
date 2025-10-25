@@ -4,27 +4,29 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/auth_service.dart';
+import 'profile_screen.dart'; // <-- Dòng import cho trang Thông tin cá nhân
 
 class SettingScreen extends StatelessWidget {
-  const SettingScreen({super.key});
+  const SettingScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cài đặt'),
+        title: Text('Cài đặt'),
       ),
       body: ListView(
         children: [
-          // Mục: Thông tin cá nhân (Chưa làm)
+          // Mục: Thông tin cá nhân
           ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Thông tin cá nhân'),
+            leading: Icon(Icons.person_outline),
+            title: Text('Thông tin cá nhân'),
             onTap: () {
-              // TODO: Điều hướng đến trang Profile
-              // Navigator.of(context).push(
-              //   MaterialPageRoute(builder: (context) => ProfileScreen()),
-              // );
+              // === ĐÃ CẬP NHẬT ===
+              // Điều hướng đến trang Profile
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => ProfileScreen()),
+              );
             },
           ),
 
@@ -33,9 +35,9 @@ class SettingScreen extends StatelessWidget {
             builder: (context, themeProvider, child) {
               return SwitchListTile(
                 secondary: Icon(themeProvider.themeMode == ThemeMode.dark
-                    ? Icons.dark_mode
-                    : Icons.light_mode),
-                title: const Text('Chế độ tối'),
+                    ? Icons.dark_mode_outlined
+                    : Icons.light_mode_outlined),
+                title: Text('Chế độ tối'),
                 value: themeProvider.themeMode == ThemeMode.dark,
                 onChanged: (bool value) {
                   // Gọi hàm để thay đổi theme
@@ -45,7 +47,7 @@ class SettingScreen extends StatelessWidget {
             },
           ),
           
-          const Divider(),
+          Divider(), // Dòng kẻ ngang
 
           // Mục: Đăng xuất
           ListTile(
@@ -59,27 +61,29 @@ class SettingScreen extends StatelessWidget {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Xác nhận đăng xuất'),
-                  content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+                  title: Text('Xác nhận đăng xuất'),
+                  content: Text('Bạn có chắc chắn muốn đăng xuất?'),
                   actions: [
+                    // Nút Hủy
                     TextButton(
-                      child: const Text('Hủy'),
+                      child: Text('Hủy'),
                       onPressed: () {
                         Navigator.of(ctx).pop();
                       },
                     ),
+                    // Nút Đăng xuất
                     TextButton(
-                      child: const Text('Đăng xuất'),
+                      child: Text('Đăng xuất'),
                       onPressed: () {
                         // 1. Tắt dialog
                         Navigator.of(ctx).pop(); 
                         
-                        // 2. Gọi hàm logout
+                        // 2. Gọi hàm logout từ AuthService
                         Provider.of<AuthService>(context, listen: false).logout();
                         
                         // 3. Quay về màn hình đăng nhập
                         // (Consumer trong main.dart sẽ tự xử lý việc này,
-                        // nhưng chúng ta pop về root cho chắc)
+                        // nhưng chúng ta pop về root (trang đầu tiên) cho chắc)
                         Navigator.of(context).popUntil((route) => route.isFirst);
                       },
                     ),
@@ -90,20 +94,6 @@ class SettingScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// Giả lập file qr_scanner_screen.dart (vì StudentHome cần)
-// Bạn hãy dùng code của bạn, đây chỉ là file giữ chỗ
-class QrScannerScreen extends StatelessWidget {
-  const QrScannerScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Quét QR')),
-      body: const Center(child: Text('Giao diện quét QR của bạn ở đây')),
     );
   }
 }
