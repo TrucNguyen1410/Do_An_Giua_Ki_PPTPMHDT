@@ -14,6 +14,11 @@ const registrationSchema = new Schema(
       ref: 'Activity', // Tham chiếu đến model 'Activity'
       required: true,
     },
+    // --- THÊM TRƯỜNG NÀY VÀO ĐỂ ĐIỂM DANH ---
+    attended: {
+      type: Boolean,
+      default: false, // Mặc định là 'chưa tham dự'
+    },
   },
   {
     timestamps: true,

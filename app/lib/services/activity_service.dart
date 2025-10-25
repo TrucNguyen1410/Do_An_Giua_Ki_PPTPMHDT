@@ -41,7 +41,20 @@ class ActivityService {
     }
   }
 
-  // --- ADMIN METHODS (CÁC HÀM BỊ THIẾU) ---
+  // <-- HÀM ĐIỂM DANH MỚI ĐƯỢC THÊM VÀO ĐÂY
+  Future<void> markAttendance(String activityId) async {
+    try {
+      // SỬA LẠI ĐƯỜNG DẪN API CHO ĐÚNG
+      await _apiClient.post('activities/attend', {
+        'activityId': activityId
+      });
+    } catch (e) {
+      // Ném lỗi ra để Provider và Screen bắt
+      throw Exception('Lỗi điểm danh: $e');
+    }
+  }
+
+  // --- ADMIN METHODS ---
 
   // Hàm fetchActivitiesAdmin (gọi chung hàm fetchActivities)
   Future<List<Activity>> fetchActivitiesAdmin() async {

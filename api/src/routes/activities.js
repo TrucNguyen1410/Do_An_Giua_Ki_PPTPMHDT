@@ -95,7 +95,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!deletedActivity) {
       return res.status(404).json({ message: 'Không tìm thấy hoạt động' });
     }
-    // TODO: Bạn cũng nên xóa các 'Registration' liên quan đến HĐ này
+    // Xóa các 'Registration' liên quan đến HĐ này
     await Registration.deleteMany({ activity: req.params.id });
     res.json({ message: 'Xóa hoạt động thành công' });
   } catch (error) {
@@ -138,6 +138,7 @@ router.post('/:id/register', authMiddleware, async (req, res) => {
     const newRegistration = new Registration({
       activity: activityId,
       student: studentId,
+      // attended: false (Nếu bạn có trường này, nó sẽ tự set default)
     });
     await newRegistration.save();
     res.status(201).json({ message: 'Đăng ký thành công' });
@@ -181,6 +182,7 @@ router.post('/:id/unregister', authMiddleware, async (req, res) => {
 // ---
 router.get('/my-history', authMiddleware, async (req, res) => {
   if (req.user.role !== 'student') {
+    // ĐÃ SỬA LỖI: 4G3 -> 403
     return res.status(403).json({ message: 'Chỉ sinh viên mới có lịch sử' });
   }
   
@@ -200,5 +202,50 @@ router.get('/my-history', authMiddleware, async (req, res) => {
 });
 
 
+// <-- 1. ROUTE ĐIỂM DANH BẰNG QR MỚI ĐÃ ĐƯỢC THÊM VÀO ĐÂY
+// ---
+// POST /api/activities/attend (Sinh viên điểm danh bằng QR)
+// ---
+router.post('/attend', authMiddleware, async (req, res) => {
+  // Chỉ sinh viên mới được điểm danh
+  if (req.user.role !== 'student') {
+    return res.status(403).json({ message: 'Chỉ sinh viên mới được điểm danh' });
+  }
+
+  try {
+    const { activityId } = req.body;
+    const studentId = req.user.userId;
+
+    // 2. Kiểm tra xem SV đã đăng ký hoạt động này chưa
+    const registration = await Registration.findOne({
+      activity: activityId,
+      student: studentId,
+    });
+
+    // 3. Nếu CHƯA đăng ký -> Báo lỗi
+    if (!registration) {
+      return res.status(404).json({ message: 'Bạn chưa đăng ký hoạt động này. Vui lòng đăng ký trước.' });
+    }
+
+    // 4. Nếu ĐÃ điểm danh rồi -> Báo thành công (nhưng không làm gì)
+    // *** Ghi chú: Cần giả định là model 'Registration' có trường 'attended' ***
+    if (registration.attended === true) {
+      return res.status(200).json({ message: 'Bạn đã điểm danh hoạt động này rồi' });
+    }
+
+    // 5. Nếu đăng ký rồi & CHƯA điểm danh -> Cập nhật
+    registration.attended = true;
+    await registration.save();
+    
+    res.status(200).json({ message: 'Điểm danh thành công' });
+
+  } catch (error) {
+    console.error('Lỗi điểm danh:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+});
+
+
 // Dùng 'export default' ở cuối
 export default router;
+

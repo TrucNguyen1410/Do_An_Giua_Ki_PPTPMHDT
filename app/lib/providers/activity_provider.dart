@@ -64,7 +64,7 @@ class ActivityProvider with ChangeNotifier {
         await _activityService.registerForActivity(activity.id);
         activity.isRegistered = true;
         if (!_history.any((a) => a.id == activity.id)) {
-           _history.add(activity);
+            _history.add(activity);
         }
       }
     } catch (e) {
@@ -76,7 +76,36 @@ class ActivityProvider with ChangeNotifier {
     }
   }
 
-  // --- ADMIN LOGIC (PHẦN BỊ THIẾU) ---
+  // <-- 1. HÀM MỚI ĐỂ ĐIỂM DANH BẰNG QR ĐÃ ĐƯỢC THÊM VÀO ĐÂY
+  Future<void> markAttendance(String activityId) async {
+    try {
+      // 2. Gọi service (Chúng ta sẽ cần thêm hàm này vào ActivityService)
+      await _activityService.markAttendance(activityId);
+
+      // 3. Cập nhật state local (tùy chọn nhưng nên làm)
+      // Đánh dấu là đã đăng ký (và/hoặc đã tham dự) trong danh sách
+      final index = _activities.indexWhere((a) => a.id == activityId);
+      if (index != -1) {
+        _activities[index].isRegistered = true; 
+        // Nếu model Activity có trường 'attended', bạn cũng nên cập nhật nó
+        // _activities[index].attended = true;
+      }
+      
+      // Cũng cập nhật trong history (nếu nó đã ở đó)
+      final historyIndex = _history.indexWhere((a) => a.id == activityId);
+      if (historyIndex != -1) {
+         // _history[historyIndex].attended = true;
+      }
+      
+      notifyListeners(); // Báo cho các listener (nếu có)
+    
+    } catch (e) {
+      print(e);
+      throw e; // Ném lỗi ra để QrScannerScreen bắt và hiển thị
+    }
+  }
+
+  // --- ADMIN LOGIC ---
   
   // Hàm fetchActivitiesAdmin (gọi chung hàm fetchActivities)
   Future<void> fetchActivitiesAdmin() async {

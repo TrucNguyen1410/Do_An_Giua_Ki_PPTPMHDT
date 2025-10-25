@@ -6,3 +6,8 @@ npm run dev
 Bước 2: chạy dự án 
 cd app
 flutter run 
+
+II. Các trường dữ liệu 
+1. Bảng activities: để lưu các hoạt động đã tạo
+2. Bảng registrations: để lưu các hoạt động sv đã đăng ký
+3. Bảng users: để lưu người dùng 

@@ -1,10 +1,9 @@
-name: doangiuaki_ppptpmhdt # Bạn có thể giữ tên project của bạn
+name: doangiuaki_ppptpmhdt
 description: A new Flutter project.
 
 # Ngăn việc vô tình publish lên pub.dev
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: 'none'
 
-# Phiên bản của ứng dụng
 version: 1.0.0+1
 
 environment:
@@ -12,7 +11,6 @@ environment:
 
 #
 # === PHẦN DEPENDENCIES ===
-# Đây là các gói mà ứng dụng của bạn cần để chạy
 #
 dependencies:
   flutter:
@@ -24,51 +22,41 @@ dependencies:
   # 1. Gọi API
   http: ^1.1.0
 
-  # 2. Quản lý trạng thái (cho AuthService, ThemeProvider, ActivityService)
+  # 2. Quản lý trạng thái
   provider: ^6.0.5
 
-  # 3. Lưu trữ local (lưu token đăng nhập, lưu cài đặt theme)
+  # 3. Lưu trữ local
   shared_preferences: ^2.2.2
 
-  # 4. Giải mã JWT (để lấy user role từ token)
+  # 4. Giải mã JWT
   jwt_decode: ^0.3.1
 
   # 5. Tạo mã QR (cho Admin)
   qr_flutter: ^4.1.0
 
-  # 6. Quét mã QR (cho Student - bạn đã có file qr_scanner_screen.dart)
-  mobile_scanner: ^3.5.6 # (Hoặc ^4.0.0 tùy bạn)
+  # 6. Quét mã QR (cho Student)
+  mobile_scanner: ^5.1.2
 
-  # 7. Định dạng ngày tháng (dùng trong activity_form.dart)
-  intl: ^0.20.2
+  # 7. Định dạng ngày tháng
+  intl: ^0.19.0
 
 
 #
 # === PHẦN DEV DEPENDENCIES ===
-# Các gói này chỉ dùng cho việc phát triển và viết test
 #
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # Gói lint để kiểm tra chất lượng code
   flutter_lints: ^2.0.0
 
 # Cấu hình chung của Flutter
 flutter:
-
-  # Bật cờ use-material-design (sử dụng Material 3)
   uses-material-design: true
 
-  # Nếu bạn có thêm hình ảnh, bạn sẽ khai báo ở đây
   # assets:
   #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
 
-  # Nếu bạn có thêm font chữ tùy chỉnh, bạn sẽ khai báo ở đây
   # fonts:
   #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
+

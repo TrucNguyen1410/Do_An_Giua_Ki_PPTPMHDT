@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/activity_provider.dart';
 import 'activity_form.dart'; // Import màn hình form
+import 'activity_detail_screen.dart'; // <-- 1. IMPORT MÀN HÌNH CHI TIẾT
 
 class AdminManageActivitiesScreen extends StatefulWidget {
   const AdminManageActivitiesScreen({Key? key}) : super(key: key);
@@ -71,21 +72,18 @@ class _AdminManageActivitiesScreenState
                 child: Text('Lỗi: ${activityProvider.activitiesError}'));
           }
 
-          // LỖI Ở ĐÂY: Phải lấy 'activities' từ PROVIDER
           if (activityProvider.activities.isEmpty) {
             return Center(child: Text('Không có hoạt động nào.'));
           }
 
           return ListView.builder(
-            // LỖI Ở ĐÂY: Phải lấy 'activities' từ PROVIDER
             itemCount: activityProvider.activities.length,
             itemBuilder: (context, index) {
-              // LỖI Ở ĐÂY: Phải lấy 'activities' từ PROVIDER
               final activity = activityProvider.activities[index];
               return Card(
                 margin: EdgeInsets.all(8),
                 child: ListTile(
-                  title: Text(activity.name), // Sửa: Dùng 'name'
+                  title: Text(activity.name),
                   subtitle: Text(activity.location),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -125,7 +123,7 @@ class _AdminManageActivitiesScreenState
                                       style: TextStyle(color: Colors.red)),
                                   onPressed: () {
                                     Navigator.of(ctx).pop();
-                                    _deleteActivity(activity.id); // LỖI Ở ĐÂY
+                                    _deleteActivity(activity.id);
                                   },
                                 ),
                               ],
@@ -135,6 +133,18 @@ class _AdminManageActivitiesScreenState
                       ),
                     ],
                   ),
+                  // <-- 2. THÊM SỰ KIỆN ONTAP VÀO ĐÂY
+                  onTap: () {
+                    // Mở màn hình chi tiết khi nhấn vào
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ActivityDetailScreen(
+                          activity: activity, // Truyền hoạt động qua
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
             },
