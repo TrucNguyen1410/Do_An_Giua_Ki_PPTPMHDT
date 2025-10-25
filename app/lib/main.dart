@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 // Providers
 import 'providers/theme_provider.dart';
 import 'services/auth_service.dart';
-import 'providers/activity_provider.dart'; // <-- ĐÃ SỬA: Phải import provider
+import 'providers/activity_provider.dart';
 
 // Screens
 import 'screens/splash_screen.dart';
@@ -15,6 +15,9 @@ import 'screens/student_home.dart';
 import 'screens/register_screen.dart';
 import 'screens/admin_manage_activities.dart';
 import 'screens/setting_screen.dart';
+import 'screens/activity_list_screen.dart';
+import 'screens/history_screen.dart';
+
 
 void main() {
   runApp(
@@ -22,8 +25,6 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()),
-        
-        // <-- ĐÃ SỬA: Phải dùng ActivityProvider ở đây
         ChangeNotifierProvider(create: (_) => ActivityProvider()), 
       ],
       child: const MyApp(),
@@ -36,49 +37,47 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Dùng Consumer ở đây để theme thay đổi mượt mà
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
-          title: 'Quản lý Hoạt động',
-          theme: ThemeData.light(useMaterial3: true),
-          darkTheme: ThemeData.dark(useMaterial3: true),
-          themeMode: themeProvider.themeMode,
+          title: 'Quản lý Hoạt động SV',
+          // --- ÁP DỤNG THEME TÙY CHỈNH ---
+          theme: MyThemes.lightTheme, 
+          darkTheme: MyThemes.darkTheme,
+          themeMode: themeProvider.themeMode, 
           debugShowCheckedModeBanner: false,
 
           // Điều hướng chính của ứng dụng
           home: Consumer<AuthService>(
             builder: (context, authService, _) {
+              final userRole = authService.currentUser?.role;
+
               if (authService.isAuthLoading) {
-                // Đang kiểm tra token (tự động đăng nhập)
-                return SplashScreen();
+                return const SplashScreen();
               }
 
               if (authService.isAuthenticated) {
-                // Đã đăng nhập
-                if (authService.userRole == 'admin') {
-                  return AdminHomeScreen(); // Điều hướng đến trang Admin
+                if (userRole == 'admin') {
+                  return const AdminHomeScreen(); 
                 } else {
-                  return StudentHomeScreen(); // Điều hướng đến trang Student
+                  return const StudentHomeScreen();
                 }
               }
 
-              // Chưa đăng nhập
-              return LoginScreen();
+              return const LoginScreen();
             },
           ),
 
-          // Định nghĩa các route (đường dẫn) để tiện điều hướng
+          // Định nghĩa routes
           routes: {
-            '/login': (context) => LoginScreen(),
-            '/register': (context) => RegisterScreen(),
-            '/admin_home': (context) => AdminHomeScreen(),
-            '/student_home': (context) => StudentHomeScreen(),
-            '/admin_manage_activities': (context) => AdminManageActivitiesScreen(),
-            '/settings': (context) => SettingScreen(),
-            // Thêm các routes cho màn hình mới
-            // '/activity_list': (context) => ActivityListScreen(),
-            // '/history': (context) => HistoryScreen(),
+            '/login': (context) => const LoginScreen(),
+            '/register': (context) => const RegisterScreen(),
+            '/admin_home': (context) => const AdminHomeScreen(),
+            '/student_home': (context) => const StudentHomeScreen(),
+            '/admin_manage_activities': (context) => const AdminManageActivitiesScreen(),
+            '/settings': (context) => const SettingScreen(),
+            '/activity_list': (context) => const ActivityListScreen(),
+            '/history': (context) => const HistoryScreen(),
           },
         );
       },
