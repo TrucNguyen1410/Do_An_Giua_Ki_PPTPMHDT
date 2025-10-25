@@ -2,7 +2,7 @@
 import express from 'express';
 import Activity from '../models/Activity.js';
 import Registration from '../models/Registration.js';
-import User from '../models/User.js'; // CẦN CÓ IMPORT USER MODEL
+import User from '../models/User.js'; 
 import authMiddleware from '../middlewares/auth.js'; 
 
 const router = express.Router();
@@ -257,7 +257,7 @@ router.get('/my-history', authMiddleware, async (req, res) => {
 
 
 // ---
-// POST /api/activities/attend (Sinh viên điểm danh bằng QR)
+// POST /api/activities/attend (Sinh viên điểm danh bằng QR - ĐÃ SỬA)
 // ---
 router.post('/attend', authMiddleware, async (req, res) => {
   if (req.user.role !== 'student') {
@@ -268,6 +268,21 @@ router.post('/attend', authMiddleware, async (req, res) => {
     const { activityId } = req.body;
     const studentId = req.user.userId;
 
+    // 1. Kiểm tra Hoạt động có tồn tại
+    const activity = await Activity.findById(activityId);
+    if (!activity) {
+      return res.status(404).json({ message: 'Hoạt động không tồn tại' });
+    }
+    
+    // --- LOGIC MỚI: KIỂM TRA QUÁ THỜI GIAN KẾT THÚC HOẠT ĐỘNG ---
+    const now = new Date();
+    // Nếu thời gian hiện tại LỚN HƠN thời gian kết thúc hoạt động (endDate)
+    if (now > activity.endDate) { 
+        return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt động. Không thể điểm danh.' });
+    }
+    // -----------------------------------------------------------------
+
+    // 2. Kiểm tra đăng ký
     const registration = await Registration.findOne({
       activity: activityId,
       student: studentId,
@@ -281,6 +296,7 @@ router.post('/attend', authMiddleware, async (req, res) => {
       return res.status(200).json({ message: 'Bạn đã điểm danh hoạt động này rồi' });
     }
 
+    // 3. Điểm danh thành công
     registration.attended = true;
     await registration.save();
     
@@ -325,7 +341,7 @@ router.get('/:activityId/attendance', authMiddleware, async (req, res) => {
             studentId: reg.student.studentId, // ID sinh viên (ví dụ: MSSV)
             fullName: reg.student.fullName,
             email: reg.student.email,
-            registrationDate: reg.createdAt,    
+            registrationDate: reg.createdAt, // Dùng ngày đăng ký (createdAt)
         };
     }).filter(Boolean); // Lọc bỏ các mục null
     
