@@ -1,40 +1,40 @@
-// lib/screens/activity_list_screen.dart
+// lib/screens/attendance_activity_list_screen.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Import intl for date formatting
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/activity_provider.dart';
-import 'activity_detail_screen.dart'; // Import the detail screen
+import 'attendance_detail_screen.dart'; // Import màn hình chi tiết điểm danh
 
-class ActivityListScreen extends StatefulWidget {
-  const ActivityListScreen({Key? key}) : super(key: key);
+class AttendanceActivityListScreen extends StatefulWidget {
+  const AttendanceActivityListScreen({Key? key}) : super(key: key);
 
   @override
-  State<ActivityListScreen> createState() => _ActivityListScreenState();
+  _AttendanceActivityListScreenState createState() =>
+      _AttendanceActivityListScreenState();
 }
 
-class _ActivityListScreenState extends State<ActivityListScreen> {
+class _AttendanceActivityListScreenState
+    extends State<AttendanceActivityListScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch activities when the screen loads
+    // Fetch activities for Admin
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Use listen: false inside initState/didChangeDependencies callbacks
-      Provider.of<ActivityProvider>(context, listen: false).fetchActivities();
+      Provider.of<ActivityProvider>(context, listen: false)
+          .fetchActivitiesAdmin(); // Dùng lại hàm fetch Admin
     });
   }
 
   // Helper to format date simply for the list
   String _formatSimpleDate(DateTime date) {
-    // Use toLocal() to display in the device's timezone
-    return DateFormat('dd/MM/yyyy').format(date.toLocal());
+    return DateFormat('dd/MM/yyyy HH:mm').format(date.toLocal());
   }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Danh sách Hoạt động'),
+        title: Text('Chọn Hoạt động để xem Điểm danh'),
       ),
       body: Consumer<ActivityProvider>(
         builder: (context, activityProvider, child) {
@@ -43,16 +43,16 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
           }
 
           if (activityProvider.activitiesError != null) {
-            return Center(child: Text('Lỗi: ${activityProvider.activitiesError}'));
+            return Center(
+                child: Text('Lỗi: ${activityProvider.activitiesError}'));
           }
 
           if (activityProvider.activities.isEmpty) {
             return Center(child: Text('Không có hoạt động nào.'));
           }
 
-          // Display the list of activities
-          return RefreshIndicator( // Added RefreshIndicator
-            onRefresh: () => Provider.of<ActivityProvider>(context, listen: false).fetchActivities(),
+          return RefreshIndicator( // Thêm RefreshIndicator
+            onRefresh: () => activityProvider.fetchActivitiesAdmin(),
             child: ListView.builder(
               itemCount: activityProvider.activities.length,
               itemBuilder: (context, index) {
@@ -74,31 +74,25 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade600),
-                              SizedBox(width: 4),
-                              Expanded(child: Text(activity.location, overflow: TextOverflow.ellipsis)),
-                            ],
-                          ),
-                          SizedBox(height: 4),
-                          Row(
-                            children: [
-                               Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey.shade600),
-                               SizedBox(width: 4),
-                               // Display start date
-                               Text('Ngày: ${_formatSimpleDate(activity.startDate)}'),
-                            ],
+                          Text('Ngày BĐ: ${_formatSimpleDate(activity.startDate)}'),
+                          Text('Địa điểm: ${activity.location}'),
+                          // Hiển thị số lượng đã đăng ký
+                          Text(
+                            'Đã đăng ký: ${activity.participantCount} / ${activity.maxParticipants > 0 ? activity.maxParticipants : 'Không giới hạn'}',
+                            style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
                     ),
-                     // Navigate to detail screen on tap
+                    trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).primaryColor),
                     onTap: () {
+                      // ĐIỀU HƯỚNG ĐẾN MÀN HÌNH CHI TIẾT ĐIỂM DANH
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ActivityDetailScreen(activity: activity),
+                          builder: (context) => AttendanceDetailScreen(
+                            activity: activity, // Truyền hoạt động qua
+                          ),
                         ),
                       );
                     },

@@ -1,40 +1,62 @@
 // lib/models/activity.dart
-import 'dart:convert'; // <-- LỖI LÀ Ở ĐÂY (PHẢI LÀ DẤU :)
-
-// Hàm helper để parse một danh sách activities từ chuỗi JSON
-List<Activity> activityFromJson(String str) =>
-    List<Activity>.from(json.decode(str).map((x) => Activity.fromJson(x)));
 
 class Activity {
   final String id;
-  final String name; // <-- TÊN ĐÚNG LÀ 'name' (KHÔNG PHẢI 'title')
+  final String name;
   final String description;
-  final DateTime date;
   final String location;
-  bool isRegistered;
+  
+  final DateTime startDate;
+  final DateTime endDate;
+  final DateTime registrationDeadline;
+
+  bool isRegistered; 
+  bool attended; // <-- SỬA: BỎ 'final' để có thể thay đổi giá trị sau khi tạo
+  final int maxParticipants; 
+  final int participantCount; 
 
   Activity({
     required this.id,
     required this.name,
     required this.description,
-    required this.date,
     required this.location,
+    required this.startDate,
+    required this.endDate,
+    required this.registrationDeadline,
     this.isRegistered = false,
+    this.attended = false, // <-- SỬA: Bỏ final
+    this.maxParticipants = 0, 
+    this.participantCount = 0,
   });
 
   factory Activity.fromJson(Map<String, dynamic> json) {
+    DateTime _parseDate(String? dateString) {
+      if (dateString == null) return DateTime.now(); 
+      try {
+        return DateTime.parse(dateString);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+    
     return Activity(
-      id: json['_id'] ?? json['id'],
-      name: json['name'] ?? 'Không có tên', // <-- SỬA 'title' thành 'name'
-      description: json['description'] ?? 'Không có mô tả',
-      date: DateTime.parse(json['date']),
-      location: json['location'] ?? 'Không rõ địa điểm',
+      id: json['_id'],
+      name: json['name'] ?? 'Không có tên',
+      description: json['description'] ?? '',
+      location: json['location'] ?? 'Không rõ',
+      
+      startDate: _parseDate(json['startDate']),
+      endDate: _parseDate(json['endDate']),
+      registrationDeadline: _parseDate(json['registrationDeadline']),
+      
       isRegistered: json['isRegistered'] ?? false,
+      attended: json['attended'] ?? false,
+      maxParticipants: json['maxParticipants'] ?? 0,
+      participantCount: json['participantCount'] ?? 0, 
     );
   }
 
-  // Hàm helper để parse một danh sách (nếu API trả về list)
   static List<Activity> listFromJson(List<dynamic> jsonList) {
-    return jsonList.map((item) => Activity.fromJson(item)).toList();
+    return jsonList.map((json) => Activity.fromJson(json)).toList();
   }
 }

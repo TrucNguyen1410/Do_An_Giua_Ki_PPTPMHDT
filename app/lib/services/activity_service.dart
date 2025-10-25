@@ -1,6 +1,8 @@
 // lib/services/activity_service.dart
 import '../models/activity.dart';
 import 'api_client.dart';
+// <-- 1. THÊM IMPORT MODEL MỚI -->
+import '../models/attendance_record.dart'; 
 
 class ActivityService {
   final ApiClient _apiClient = ApiClient();
@@ -41,16 +43,25 @@ class ActivityService {
     }
   }
 
-  // <-- HÀM ĐIỂM DANH MỚI ĐƯỢC THÊM VÀO ĐÂY
+  // --- HÀM ĐIỂM DANH SV (QUÉT QR) ---
   Future<void> markAttendance(String activityId) async {
     try {
-      // SỬA LẠI ĐƯỜNG DẪN API CHO ĐÚNG
       await _apiClient.post('activities/attend', {
         'activityId': activityId
       });
     } catch (e) {
-      // Ném lỗi ra để Provider và Screen bắt
       throw Exception('Lỗi điểm danh: $e');
+    }
+  }
+
+  // --- HÀM MỚI CHO ADMIN (GỌI API LẤY DANH SÁCH ĐIỂM DANH) ---
+  Future<List<AttendanceRecord>> fetchAttendanceList(String activityId) async {
+    try {
+      // Gọi API endpoint mới (GET /api/activities/:activityId/attendance)
+      final List<dynamic> responseData = await _apiClient.get('activities/$activityId/attendance');
+      return AttendanceRecord.listFromJson(responseData);
+    } catch (e) {
+      throw Exception('Lỗi tải danh sách điểm danh: ${e.toString()}');
     }
   }
 
@@ -61,7 +72,6 @@ class ActivityService {
     return fetchActivities(); 
   }
 
-  // Hàm tạo hoạt động
   Future<Activity> createActivity(Map<String, dynamic> data) async {
     try {
       final responseData = await _apiClient.post('activities', data);
@@ -71,7 +81,6 @@ class ActivityService {
     }
   }
 
-  // Hàm cập nhật hoạt động
   Future<Activity> updateActivity(String id, Map<String, dynamic> data) async {
     try {
       final responseData = await _apiClient.put('activities/$id', data);
@@ -81,7 +90,6 @@ class ActivityService {
     }
   }
 
-  // Hàm xóa hoạt động
   Future<void> deleteActivity(String id) async {
     try {
       await _apiClient.delete('activities/$id');

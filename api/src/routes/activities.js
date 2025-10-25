@@ -2,36 +2,44 @@
 import express from 'express';
 import Activity from '../models/Activity.js';
 import Registration from '../models/Registration.js';
-import authMiddleware from '../middlewares/auth.js'; // Dùng 'import'
+import User from '../models/User.js'; // CẦN CÓ IMPORT USER MODEL
+import authMiddleware from '../middlewares/auth.js'; 
 
 const router = express.Router();
 
 // ---
-// GET /api/activities (Lấy tất cả hoạt động - cho cả Student và Admin)
+// GET /api/activities (Lấy tất cả hoạt động)
 // ---
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const activities = await Activity.find().sort({ date: -1 }); // Sắp xếp mới nhất
-    
-    // Nếu là student, kiểm tra xem họ đã đăng ký hoạt động nào
+    const activities = await Activity.find()
+      .populate('participantCount') 
+      .sort({ startDate: 1 }); 
+
     if (req.user.role === 'student') {
       const studentId = req.user.userId;
-      // Lấy danh sách ID các hoạt động mà student này đã đăng ký
       const registrations = await Registration.find({ student: studentId });
-      const registeredActivityIds = new Set(registrations.map(reg => reg.activity.toString()));
+      
+      const registrationMap = new Map();
+      registrations.forEach(reg => {
+        registrationMap.set(reg.activity.toString(), {
+          attended: reg.attended,
+        });
+      });
 
-      // Chuyển 'activities' (Mongoose document) thành object JS
       const activitiesWithStatus = activities.map(activity => {
         const plainActivity = activity.toObject(); 
+        const regStatus = registrationMap.get(plainActivity._id.toString());
+
         return {
           ...plainActivity,
-          isRegistered: registeredActivityIds.has(plainActivity._id.toString()),
+          isRegistered: !!regStatus, 
+          attended: regStatus ? regStatus.attended : false, 
         };
       });
       return res.json(activitiesWithStatus);
     }
 
-    // Nếu là Admin, cứ trả về danh sách
     res.json(activities);
 
   } catch (error) {
@@ -41,26 +49,43 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // ---
-// POST /api/activities (Tạo hoạt động mới - Chỉ Admin)
+// POST /api/activities (Tạo hoạt động mới - Admin)
 // ---
 router.post('/', authMiddleware, async (req, res) => {
-  // Kiểm tra quyền Admin
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền truy cập' });
   }
   
   try {
-    const { name, description, date, location } = req.body;
-    const newActivity = new Activity({ name, description, date, location });
+    const { 
+      name, description, location, maxParticipants, 
+      startDate, endDate, registrationDeadline 
+    } = req.body;
+
+    if (!startDate || !endDate || !registrationDeadline) {
+      return res.status(400).json({ message: 'Vui lòng nhập đủ Ngày bắt đầu, Ngày kết thúc và Hạn chót đăng ký' });
+    }
+    
+    const newActivity = new Activity({ 
+      name, 
+      description, 
+      location,
+      maxParticipants: maxParticipants || 0,
+      startDate, 
+      endDate, 
+      registrationDeadline 
+    });
+    
     await newActivity.save();
     res.status(201).json(newActivity);
   } catch (error) {
+    console.error('Lỗi tạo hoạt động:', error);
     res.status(500).json({ message: 'Lỗi tạo hoạt động' });
   }
 });
 
 // ---
-// PUT /api/activities/:id (Cập nhật hoạt động - Chỉ Admin)
+// PUT /api/activities/:id (Cập nhật hoạt động - Admin)
 // ---
 router.put('/:id', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') {
@@ -70,8 +95,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const updatedActivity = await Activity.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true } // Trả về document đã được cập nhật
+      req.body, 
+      { new: true } 
     );
     if (!updatedActivity) {
       return res.status(404).json({ message: 'Không tìm thấy hoạt động' });
@@ -83,7 +108,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // ---
-// DELETE /api/activities/:id (Xóa hoạt động - Chỉ Admin)
+// DELETE /api/activities/:id (Xóa hoạt động - Admin)
 // ---
 router.delete('/:id', authMiddleware, async (req, res) => {
   if (req.user.role !== 'admin') {
@@ -95,7 +120,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!deletedActivity) {
       return res.status(404).json({ message: 'Không tìm thấy hoạt động' });
     }
-    // Xóa các 'Registration' liên quan đến HĐ này
     await Registration.deleteMany({ activity: req.params.id });
     res.json({ message: 'Xóa hoạt động thành công' });
   } catch (error) {
@@ -118,13 +142,25 @@ router.post('/:id/register', authMiddleware, async (req, res) => {
     const activityId = req.params.id;
     const studentId = req.user.userId;
 
-    // 1. Kiểm tra hoạt động có tồn tại không
     const activity = await Activity.findById(activityId);
     if (!activity) {
       return res.status(404).json({ message: 'Hoạt động không tồn tại' });
     }
 
-    // 2. Kiểm tra đã đăng ký chưa
+    // LOGIC 1: KIỂM TRA QUÁ HẠN ĐĂNG KÝ
+    const now = new Date();
+    if (now > activity.registrationDeadline) { 
+      return res.status(400).json({ message: 'Hoạt động này đã quá hạn đăng ký' });
+    }
+
+    // LOGIC 2: KIỂM TRA SỐ LƯỢNG
+    if (activity.maxParticipants && activity.maxParticipants > 0) {
+      const currentCount = await Registration.countDocuments({ activity: activityId });
+      if (currentCount >= activity.maxParticipants) {
+        return res.status(400).json({ message: 'Hoạt động này đã đủ số lượng' });
+      }
+    }
+
     const existingRegistration = await Registration.findOne({
       activity: activityId,
       student: studentId,
@@ -134,17 +170,17 @@ router.post('/:id/register', authMiddleware, async (req, res) => {
       return res.status(409).json({ message: 'Bạn đã đăng ký hoạt động này rồi' });
     }
 
-    // 3. Tạo đăng ký mới
     const newRegistration = new Registration({
       activity: activityId,
       student: studentId,
-      // attended: false (Nếu bạn có trường này, nó sẽ tự set default)
+      attended: false, 
     });
     await newRegistration.save();
     res.status(201).json({ message: 'Đăng ký thành công' });
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi đăng ký' });
+    console.error('Lỗi đăng ký:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 });
 
@@ -160,7 +196,15 @@ router.post('/:id/unregister', authMiddleware, async (req, res) => {
     const activityId = req.params.id;
     const studentId = req.user.userId;
 
-    // 1. Tìm và xóa đăng ký
+    // LOGIC: KIỂM TRA QUÁ HẠN ĐĂNG KÝ (Không cho hủy nếu ĐÃ HẾT HẠN)
+    const activity = await Activity.findById(activityId);
+    if (activity) {
+      const now = new Date();
+      if (now > activity.registrationDeadline) { 
+        return res.status(400).json({ message: 'Không thể hủy đăng ký vì đã quá hạn chót' });
+      }
+    }
+
     const deletedRegistration = await Registration.findOneAndDelete({
       activity: activityId,
       student: studentId,
@@ -173,7 +217,8 @@ router.post('/:id/unregister', authMiddleware, async (req, res) => {
     res.status(200).json({ message: 'Hủy đăng ký thành công' });
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi hủy đăng ký' });
+    console.error('Lỗi hủy đăng ký:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 });
 
@@ -182,32 +227,39 @@ router.post('/:id/unregister', authMiddleware, async (req, res) => {
 // ---
 router.get('/my-history', authMiddleware, async (req, res) => {
   if (req.user.role !== 'student') {
-    // ĐÃ SỬA LỖI: 4G3 -> 403
     return res.status(403).json({ message: 'Chỉ sinh viên mới có lịch sử' });
   }
   
   try {
     const studentId = req.user.userId;
-    // Tìm các đăng ký của sinh viên, và 'populate' (lấy) thông tin chi tiết của hoạt động
     const registrations = await Registration.find({ student: studentId })
-                                            .populate('activity');
+                                            .populate('activity')
+                                            .sort({ createdAt: -1 }); 
 
-    // Chỉ trả về mảng các hoạt động
-    const activities = registrations.map(reg => reg.activity);
-    res.json(activities);
+    const activitiesWithStatus = registrations.map(reg => {
+      if (!reg.activity) return null; 
+      
+      const plainActivity = reg.activity.toObject();
+      return {
+        ...plainActivity,
+        isRegistered: true,
+        attended: reg.attended, 
+      };
+    }).filter(Boolean); 
+    
+    res.json(activitiesWithStatus);
 
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi lấy lịch sử' });
+    console.error('Lỗi lấy lịch sử:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 });
 
 
-// <-- 1. ROUTE ĐIỂM DANH BẰNG QR MỚI ĐÃ ĐƯỢC THÊM VÀO ĐÂY
 // ---
 // POST /api/activities/attend (Sinh viên điểm danh bằng QR)
 // ---
 router.post('/attend', authMiddleware, async (req, res) => {
-  // Chỉ sinh viên mới được điểm danh
   if (req.user.role !== 'student') {
     return res.status(403).json({ message: 'Chỉ sinh viên mới được điểm danh' });
   }
@@ -216,24 +268,19 @@ router.post('/attend', authMiddleware, async (req, res) => {
     const { activityId } = req.body;
     const studentId = req.user.userId;
 
-    // 2. Kiểm tra xem SV đã đăng ký hoạt động này chưa
     const registration = await Registration.findOne({
       activity: activityId,
       student: studentId,
     });
 
-    // 3. Nếu CHƯA đăng ký -> Báo lỗi
     if (!registration) {
       return res.status(404).json({ message: 'Bạn chưa đăng ký hoạt động này. Vui lòng đăng ký trước.' });
     }
 
-    // 4. Nếu ĐÃ điểm danh rồi -> Báo thành công (nhưng không làm gì)
-    // *** Ghi chú: Cần giả định là model 'Registration' có trường 'attended' ***
     if (registration.attended === true) {
       return res.status(200).json({ message: 'Bạn đã điểm danh hoạt động này rồi' });
     }
 
-    // 5. Nếu đăng ký rồi & CHƯA điểm danh -> Cập nhật
     registration.attended = true;
     await registration.save();
     
@@ -246,6 +293,52 @@ router.post('/attend', authMiddleware, async (req, res) => {
 });
 
 
+// --- ROUTE MỚI: LẤY DANH SÁCH ĐIỂM DANH CỦA MỘT HOẠT ĐỘNG (ADMIN) ---
+// ---
+// GET /api/activities/:activityId/attendance (Chỉ Admin)
+// ---
+router.get('/:activityId/attendance', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Chỉ Admin mới có quyền xem danh sách điểm danh' });
+  }
+  
+  try {
+    const { activityId } = req.params;
+
+    // 1. Tìm tất cả các bản ghi đăng ký thỏa mãn ĐÃ ĐIỂM DANH
+    const registrations = await Registration.find({
+      activity: activityId,
+      attended: true, // Chỉ lấy những người đã điểm danh
+    })
+    .populate({
+      path: 'student', // Lấy thông tin chi tiết của sinh viên
+      select: 'fullName email studentId role', // Chỉ chọn các trường cần thiết (Cần đảm bảo User model có studentId)
+    })
+    .sort({ createdAt: 1 }); // Sắp xếp theo thứ tự đăng ký/điểm danh
+
+    // 2. Định dạng lại dữ liệu trả về
+    const attendanceList = registrations.map(reg => {
+        // Kiểm tra xem reg.student có tồn tại không (nếu user bị xóa)
+        if (!reg.student) return null; 
+
+        return {
+            studentId: reg.student.studentId, // ID sinh viên (ví dụ: MSSV)
+            fullName: reg.student.fullName,
+            email: reg.student.email,
+            registrationDate: reg.createdAt,    
+        };
+    }).filter(Boolean); // Lọc bỏ các mục null
+    
+
+    res.json(attendanceList);
+
+  } catch (error) {
+    console.error('Lỗi lấy danh sách điểm danh:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy danh sách điểm danh' });
+  }
+});
+// -------------------------------------------------------------------------
+
+
 // Dùng 'export default' ở cuối
 export default router;
-

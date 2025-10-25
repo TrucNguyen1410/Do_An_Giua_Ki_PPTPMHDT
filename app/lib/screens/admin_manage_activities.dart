@@ -30,13 +30,17 @@ class _AdminManageActivitiesScreenState
     try {
       await Provider.of<ActivityProvider>(context, listen: false)
           .deleteActivity(id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Xóa hoạt động thành công')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Xóa hoạt động thành công')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi xóa: $e')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi xóa: $e')),
+        );
+      }
     }
   }
 

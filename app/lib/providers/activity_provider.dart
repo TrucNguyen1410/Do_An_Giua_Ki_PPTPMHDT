@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../models/activity.dart';
 import '../services/activity_service.dart';
+// <-- 1. THÊM IMPORT MODEL MỚI -->
+import '../models/attendance_record.dart'; 
 
 class ActivityProvider with ChangeNotifier {
   final ActivityService _activityService = ActivityService();
@@ -76,32 +78,43 @@ class ActivityProvider with ChangeNotifier {
     }
   }
 
-  // <-- 1. HÀM MỚI ĐỂ ĐIỂM DANH BẰNG QR ĐÃ ĐƯỢC THÊM VÀO ĐÂY
+  // --- HÀM ĐIỂM DANH SV (QUÉT QR) ---
   Future<void> markAttendance(String activityId) async {
     try {
-      // 2. Gọi service (Chúng ta sẽ cần thêm hàm này vào ActivityService)
       await _activityService.markAttendance(activityId);
 
-      // 3. Cập nhật state local (tùy chọn nhưng nên làm)
-      // Đánh dấu là đã đăng ký (và/hoặc đã tham dự) trong danh sách
+      // Cập nhật state local
       final index = _activities.indexWhere((a) => a.id == activityId);
       if (index != -1) {
+        // Cập nhật trạng thái đã đăng ký
         _activities[index].isRegistered = true; 
-        // Nếu model Activity có trường 'attended', bạn cũng nên cập nhật nó
-        // _activities[index].attended = true;
+        // Cập nhật trạng thái đã điểm danh
+        _activities[index].attended = true; // Giả định Activity Model có setter cho attended
       }
       
-      // Cũng cập nhật trong history (nếu nó đã ở đó)
+      // Cập nhật trong history
       final historyIndex = _history.indexWhere((a) => a.id == activityId);
       if (historyIndex != -1) {
-         // _history[historyIndex].attended = true;
+          _history[historyIndex].attended = true;
       }
       
-      notifyListeners(); // Báo cho các listener (nếu có)
+      notifyListeners();
     
     } catch (e) {
       print(e);
-      throw e; // Ném lỗi ra để QrScannerScreen bắt và hiển thị
+      throw e; 
+    }
+  }
+  
+  // --- HÀM MỚI CHO ADMIN (XEM DANH SÁCH ĐIỂM DANH) ---
+  Future<List<AttendanceRecord>> fetchAttendanceList(String activityId) async {
+    try {
+      // Gọi service mới
+      final list = await _activityService.fetchAttendanceList(activityId);
+      return list;
+    } catch (e) {
+      print(e);
+      throw Exception('Lỗi lấy danh sách điểm danh: ${e.toString()}');
     }
   }
 
@@ -109,25 +122,23 @@ class ActivityProvider with ChangeNotifier {
   
   // Hàm fetchActivitiesAdmin (gọi chung hàm fetchActivities)
   Future<void> fetchActivitiesAdmin() async {
-    // Chúng ta dùng chung hàm fetchActivities của student
     await fetchActivities();
   }
 
   Future<void> createActivity(Map<String, dynamic> data) async {
     try {
       final newActivity = await _activityService.createActivity(data);
-      _activities.add(newActivity); // Thêm vào danh sách
+      _activities.add(newActivity);
       notifyListeners();
     } catch (e) {
       print(e);
-      throw e; // Ném lỗi ra để form hiển thị
+      throw e;
     }
   }
 
   Future<void> updateActivity(String id, Map<String, dynamic> data) async {
     try {
       final updatedActivity = await _activityService.updateActivity(id, data);
-      // Cập nhật lại list
       final index = _activities.indexWhere((a) => a.id == id);
       if (index != -1) {
         _activities[index] = updatedActivity;
@@ -142,7 +153,6 @@ class ActivityProvider with ChangeNotifier {
   Future<void> deleteActivity(String id) async {
     try {
       await _activityService.deleteActivity(id);
-      // Xóa khỏi list
       _activities.removeWhere((a) => a.id == id);
       notifyListeners();
     } catch (e) {
