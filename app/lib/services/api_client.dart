@@ -2,10 +2,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'config.dart';
+import 'config.dart'; // <-- Import Config
 
 class ApiClient {
-  final String _baseUrl = Config.baseUrl;
+  String? _baseUrl; // Cache URL trong instance
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,9 +25,16 @@ class ApiClient {
     };
   }
 
+  /// Lấy base URL (có cache)
+  Future<String> _getBaseUrl() async {
+    _baseUrl ??= await Config.getBaseUrl();
+    return _baseUrl!;
+  }
+
   // Hàm GET
   Future<dynamic> get(String endpoint) async {
-    final url = Uri.parse('$_baseUrl/$endpoint');
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl/$endpoint');
     final headers = await _getHeaders();
     try {
       final response = await http.get(url, headers: headers);
@@ -39,7 +46,8 @@ class ApiClient {
 
   // Hàm POST
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
-    final url = Uri.parse('$_baseUrl/$endpoint');
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl/$endpoint');
     final headers = await _getHeaders();
     final body = json.encode(data);
     try {
@@ -50,10 +58,10 @@ class ApiClient {
     }
   }
 
-  // **HÀM MỚI CHO ADMIN**
-  // Hàm PUT (để update)
+  // Hàm PUT
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
-    final url = Uri.parse('$_baseUrl/$endpoint');
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl/$endpoint');
     final headers = await _getHeaders();
     final body = json.encode(data);
     try {
@@ -64,10 +72,10 @@ class ApiClient {
     }
   }
 
-  // **HÀM MỚI CHO ADMIN**
   // Hàm DELETE
   Future<dynamic> delete(String endpoint) async {
-    final url = Uri.parse('$_baseUrl/$endpoint');
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl/$endpoint');
     final headers = await _getHeaders();
     try {
       final response = await http.delete(url, headers: headers);
@@ -79,15 +87,14 @@ class ApiClient {
 
   // Xử lý response chung
   dynamic _handleResponse(http.Response response) {
-    // Sửa lỗi: Kiểm tra body rỗng trước khi decode
     if (response.body.isEmpty) {
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return null; // Thành công nhưng không có body (ví dụ: DELETE)
+        return null;
       } else {
         throw Exception('Lỗi máy chủ (code: ${response.statusCode})');
       }
     }
-    
+
     final responseData = json.decode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
