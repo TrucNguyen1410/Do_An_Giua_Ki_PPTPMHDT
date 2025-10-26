@@ -284,7 +284,6 @@ router.post('/attend', authMiddleware, async (req, res) => {
     if (now > activity.endDate) {
 return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt động. Không thể điểm danh.' });
     }
-    // -----------------------------------------------------------------
 
     // 2. Kiểm tra đăng ký
     const registration = await Registration.findOne({
