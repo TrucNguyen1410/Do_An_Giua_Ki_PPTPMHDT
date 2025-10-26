@@ -20,9 +20,7 @@ class ApiClient {
         'Authorization': 'Bearer $token',
       };
     }
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-    };
+    return {'Content-Type': 'application/json; charset=UTF-8'};
   }
 
   /// Lấy base URL (có cache)
