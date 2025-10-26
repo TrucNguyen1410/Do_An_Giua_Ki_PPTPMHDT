@@ -1,4 +1,4 @@
-// src/routes/auth.js (Bản CHUẨN để đăng nhập)
+// src/routes/auth.js — BẢN HOÀN CHỈNH CÓ ĐỔI MẬT KHẨU
 import express from 'express';
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
@@ -7,18 +7,22 @@ import authMiddleware from '../middlewares/auth.js';
 
 const router = express.Router();
 
+/* ------------------ ĐĂNG KÝ ------------------ */
 router.post('/register', async (req, res) => {
   try {
     const { fullName, email, password } = req.body;
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: 'Vui lòng nhập đủ thông tin' });
     }
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json({ message: 'Email này đã được sử dụng' });
     }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+
     const newUser = new User({
       fullName,
       email,
@@ -26,11 +30,13 @@ router.post('/register', async (req, res) => {
       role: 'student',
     });
     await newUser.save();
+
     const token = jwt.sign(
       { userId: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
+
     res.status(201).json({
       token,
       user: {
@@ -46,47 +52,34 @@ router.post('/register', async (req, res) => {
   }
 });
 
+/* ------------------ ĐĂNG NHẬP ------------------ */
 router.post('/login', async (req, res) => {
   console.log('---------------------------------');
-  console.log('ĐÃ NHẬN ĐƯỢC REQUEST LOGIN (Bản chuẩn)');
+  console.log('ĐÃ NHẬN ĐƯỢC REQUEST LOGIN');
+
   try {
     const { email, password } = req.body;
-    
-    console.log('Input Email:', email);
-    console.log('Input Password:', password);
 
     if (!email || !password) {
-      console.log('LỖI: Thiếu email hoặc password');
       return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('LỖI: Không tìm thấy user với email:', email);
       return res.status(401).json({ message: 'Sai email hoặc mật khẩu' });
     }
 
-    console.log('Đã tìm thấy user:', user.fullName);
-    console.log('Hash trong DB:', user.password);
-    
-    // So sánh mật khẩu
     const isMatch = await bcrypt.compare(password, user.password);
-    
-    console.log('Kết quả so sánh (isMatch):', isMatch); // Dòng này BÂY GIỜ SẼ LÀ TRUE
-    
     if (!isMatch) {
-      console.log('LỖI: Mật khẩu không khớp!');
       return res.status(401).json({ message: 'Sai email hoặc mật khẩu' });
     }
 
-    console.log('THÀNH CÔNG: Đăng nhập thành công, tạo token...');
-    
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
-    
+
     res.status(200).json({
       token,
       user: {
@@ -96,13 +89,13 @@ router.post('/login', async (req, res) => {
         role: user.role,
       },
     });
-
   } catch (error) {
     console.error('LỖI SERVER 500:', error);
     res.status(500).json({ message: 'Lỗi máy chủ nội bộ' });
   }
 });
 
+/* ------------------ LẤY THÔNG TIN NGƯỜI DÙNG ------------------ */
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password');
@@ -112,6 +105,42 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     console.error('Lỗi /api/auth/me:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ nội bộ' });
+  }
+});
+
+/* ------------------ ĐỔI MẬT KHẨU ------------------ */
+router.post('/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: 'Vui lòng nhập đủ thông tin' });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: 'Mật khẩu xác nhận không khớp' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Mật khẩu cũ không đúng' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedNewPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Đổi mật khẩu thành công!' });
+  } catch (error) {
+    console.error('Lỗi đổi mật khẩu:', error);
     res.status(500).json({ message: 'Lỗi máy chủ nội bộ' });
   }
 });

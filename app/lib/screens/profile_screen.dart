@@ -1,30 +1,27 @@
 // lib/screens/profile_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import '../models/user.dart'; // Import model User
+import '../models/user.dart';
+import 'change_password_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
-    // Dùng Consumer để tự động cập nhật khi data thay đổi
     return Scaffold(
       appBar: AppBar(
-        title: Text('Thông tin cá nhân'),
+        title: const Text('Thông tin cá nhân'),
       ),
       body: Consumer<AuthService>(
         builder: (context, authService, child) {
-          
-          // Lấy user từ service
           final User? user = authService.currentUser;
 
-          // Hiển thị loading nếu user chưa kịp tải
           if (user == null) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
 
-          // Hiển thị thông tin
           return Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -33,36 +30,57 @@ class ProfileScreen extends StatelessWidget {
                 Text(
                   'Thông tin tài khoản',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 ListTile(
-                  leading: Icon(Icons.person_outline),
-                  title: Text('Họ và tên'),
-                  subtitle: Text(user.fullName), // <-- DỮ LIỆU THẬT
-                ),
-                ListTile(
-                  leading: Icon(Icons.email_outlined),
-                  title: Text('Email'),
-                  subtitle: Text(user.email), // <-- DỮ LIỆU THẬT
+                  leading: const Icon(Icons.person_outline),
+                  title: const Text('Họ và tên'),
+                  subtitle: Text(user.fullName),
                 ),
                 ListTile(
-                  leading: Icon(Icons.badge_outlined),
-                  title: Text('Vai trò'),
-                  subtitle: Text(user.role), // <-- DỮ LIỆU THẬT
+                  leading: const Icon(Icons.email_outlined),
+                  title: const Text('Email'),
+                  subtitle: Text(user.email),
                 ),
-                SizedBox(height: 32),
-                ElevatedButton(
+                ListTile(
+                  leading: const Icon(Icons.badge_outlined),
+                  title: const Text('Vai trò'),
+                  subtitle: Text(user.role),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Thêm logic đổi mật khẩu
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Chức năng này chưa được code!')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordScreen(),
+                      ),
                     );
                   },
-                  child: Text('Đổi mật khẩu'),
+                  icon: const Icon(Icons.lock_reset),
+                  label: const Text('Đổi mật khẩu'),
                   style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await authService.logout();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đã đăng xuất')),
+                      );
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Đăng xuất'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
               ],
