@@ -58,7 +58,6 @@ class ApiClient {
     }
   }
 
-// Hàm mới cho admind
   // Hàm PUT
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
     final baseUrl = await _getBaseUrl();
