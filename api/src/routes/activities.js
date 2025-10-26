@@ -274,17 +274,9 @@ router.post('/attend', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Hoạt động không tồn tại' });
     }
     
-    // --- LOGIC MỚI: KIỂM TRA QUÁ THỜI GIAN KẾT THÚC HOẠT ĐỘNG ---
-    const now = new Date();
-    // Nếu thời gian hiện tại LỚN HƠN thời gian kết thúc hoạt động (endDate)
     if (now > activity.endDate) { 
-        return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt động. Không thể điểm danh.' });
-    if (now > activity.endDate) {
-return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt động. Không thể điểm danh.' });
-    }
-  }
-    // -----------------------------------------------------------------
-
+    return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt động. Không thể điểm danh.' });
+}
     // 2. Kiểm tra đăng ký
     const registration = await Registration.findOne({
       activity: activityId,
@@ -309,8 +301,7 @@ return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt
     console.error('Lỗi điểm danh:', error);
     res.status(500).json({ message: 'Lỗi máy chủ' });
   }
-}
-);
+});
 
 
 // --- ROUTE MỚI: LẤY DANH SÁCH ĐIỂM DANH CỦA MỘT HOẠT ĐỘNG (ADMIN) ---
