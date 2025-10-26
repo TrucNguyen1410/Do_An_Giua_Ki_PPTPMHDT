@@ -17,131 +17,58 @@ class ActivityDetailScreen extends StatelessWidget {
     this.isFromHistory = false,
   }) : super(key: key);
 
-  // --- HÀM CỦA ADMIN ---
-  void _showQrDialog(BuildContext context, String activityId, String activityName) {
+  void _showQrDialog(
+      BuildContext context, String activityId, String activityName) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('QR Điểm danh: $activityName'),
-          content: Container(
-            width: 300, height: 300, // Fixed size
-            child: QrImageView(
-              data: activityId,
-              version: QrVersions.auto,
-              size: 300.0,
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Đóng'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // --- HÀM XỬ LÝ NHẤN NÚT (Đã có try-catch) ---
-  Future<void> _handleToggleRegistration(BuildContext context, ActivityProvider provider, Activity activity) async {
-    try {
-      await provider.toggleRegistration(activity);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString().replaceAll("Exception: ", "")}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  // --- HELPER FORMAT DATE RANGE ---
-  String _formatDateRange(DateTime start, DateTime end) {
-    final DateFormat dayFormat = DateFormat('dd/MM/yyyy');
-    final DateFormat timeFormat = DateFormat('HH:mm');
-    if (start.year == end.year && start.month == end.month && start.day == end.day) {
-      return '${dayFormat.format(start.toLocal())} (${timeFormat.format(start.toLocal())} - ${timeFormat.format(end.toLocal())})';
-    } else {
-      return '${dayFormat.format(start.toLocal())} ${timeFormat.format(start.toLocal())} - ${dayFormat.format(end.toLocal())} ${timeFormat.format(end.toLocal())}';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final userRole = Provider.of<AuthService>(context, listen: false).currentUser?.role;
-
-    return Consumer<ActivityProvider>(
-      builder: (context, provider, child) {
-        final List<Activity> sourceList = isFromHistory ? provider.history : provider.activities;
-        final liveActivity = sourceList.firstWhere(
-          (a) => a.id == activity.id,
-          orElse: () => activity,
-        );
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(isFromHistory ? 'Chi tiết Lịch sử' : liveActivity.name),
-          ),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                 Text(
-                  liveActivity.name,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                Text(
+                  'QR Điểm danh',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
                 ),
-                const SizedBox(height: 16),
-                _InfoRow(
-                  icon: Icons.calendar_today_outlined,
-                  text: 'Thời gian: ${_formatDateRange(liveActivity.startDate, liveActivity.endDate)}',
-                ),
                 const SizedBox(height: 8),
-                _InfoRow(
-                  icon: Icons.timer_off_outlined,
-                  text: 'Hạn chót ĐK: ${DateFormat('dd/MM/yyyy HH:mm').format(liveActivity.registrationDeadline.toLocal())}',
-                ),
-                const SizedBox(height: 8),
-                _InfoRow(
-                  icon: Icons.location_on_outlined,
-                  text: 'Địa điểm: ${liveActivity.location}',
-                ),
-                 if (userRole == 'admin' || liveActivity.maxParticipants > 0) ...[
-                  const SizedBox(height: 8),
-                  _InfoRow(
-                    icon: Icons.people_outline,
-                    text: 'Số lượng: ${liveActivity.participantCount} / ${liveActivity.maxParticipants > 0 ? liveActivity.maxParticipants : 'Không giới hạn'}',
-                  ),
-                ],
-                const SizedBox(height: 24),
                 Text(
-                  'Mô tả hoạt động:',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  activityName,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const Divider(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Text(
-                      liveActivity.description,
-                      style: Theme.of(context).textTheme.bodyLarge,
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(context).dividerColor,
+                      width: 2,
                     ),
                   ),
+                  child: QrImageView(
+                    data: activityId,
+                    version: QrVersions.auto,
+                    size: 240.0,
+                  ),
                 ),
-                const SizedBox(height: 20),
-
-                // --- WIDGET HÀNH ĐỘNG (Đã sửa logic nút xám) ---
-                if (userRole == 'admin')
-                  _buildAdminActions(context, liveActivity)
-                else if (userRole == 'student')
-                  _buildStudentActions(context, liveActivity, provider, isFromHistory) // Pass flag
-                else
-                  Container(),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Đóng'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -150,120 +77,437 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 
-  // --- WIDGET HÀNH ĐỘNG CHO ADMIN ---
-  Widget _buildAdminActions(BuildContext context, Activity activity) {
-     return SizedBox(
-       width: double.infinity,
-       child: ElevatedButton.icon(
-          icon: Icon(Icons.qr_code_2_sharp),
-          label: Text(
-            'HIỆN QR ĐIỂM DANH',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          onPressed: () {
-            _showQrDialog(context, activity.id, activity.name);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+  Future<void> _handleToggleRegistration(
+    BuildContext context,
+    ActivityProvider provider,
+    Activity activity,
+  ) async {
+    try {
+      await provider.toggleRegistration(activity);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              activity.isRegistered
+                  ? 'Hủy đăng ký thành công'
+                  : 'Đăng ký thành công',
             ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
-        ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${e.toString().replaceAll("Exception: ", "")}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatDateRange(DateTime start, DateTime end) {
+    final DateFormat dayFormat = DateFormat('dd/MM/yyyy');
+    final DateFormat timeFormat = DateFormat('HH:mm');
+    if (start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day) {
+      return '${dayFormat.format(start.toLocal())} (${timeFormat.format(start.toLocal())} - ${timeFormat.format(end.toLocal())})';
+    } else {
+      return '${dayFormat.format(start.toLocal())} ${timeFormat.format(start.toLocal())} - ${dayFormat.format(end.toLocal())} ${timeFormat.format(end.toLocal())}';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final userRole =
+        Provider.of<AuthService>(context, listen: false).currentUser?.role;
+
+    return Consumer<ActivityProvider>(
+      builder: (context, provider, child) {
+        final List<Activity> sourceList =
+            isFromHistory ? provider.history : provider.activities;
+        final liveActivity = sourceList.firstWhere(
+          (a) => a.id == activity.id,
+          orElse: () => activity,
+        );
+
+        return Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              // === MODERN APP BAR WITH GRADIENT ===
+              _buildSliverAppBar(context, theme, liveActivity),
+
+              // === CONTENT ===
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Info Cards
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoCard(theme, liveActivity, userRole),
+
+                          const SizedBox(height: 20),
+
+                          // Description Section
+                          Text(
+                            'Mô tả hoạt động',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: theme.dividerColor,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              liveActivity.description,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(
+                              height: 100), // Space for bottom button
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // === BOTTOM ACTION BUTTON ===
+          bottomNavigationBar: _buildBottomAction(
+            context,
+            theme,
+            liveActivity,
+            provider,
+            userRole,
+          ),
+        );
+      },
     );
   }
 
-  // --- WIDGET HÀNH ĐỘNG CHO SINH VIÊN (Đã sửa logic nút xám) ---
-  Widget _buildStudentActions(BuildContext context, Activity activity, ActivityProvider provider, bool isFromHistory) {
-    final now = DateTime.now();
-    final bool isRegistrationClosed = now.isAfter(activity.registrationDeadline);
-    final bool isActivityFinished = now.isAfter(activity.endDate);
-    final bool isFull = activity.maxParticipants > 0 &&
-                        activity.participantCount >= activity.maxParticipants;
-    final bool isLoading = provider.isActivityLoading(activity.id);
-
-    // LOGIC 1: XEM TỪ LỊCH SỬ
-    if (isFromHistory) {
-         return _buildStatusChip(
-           text: activity.attended ? 'TRẠNG THÁI: ĐÃ ĐIỂM DANH' : 'TRẠNG THÁI: CHƯA ĐIỂM DANH',
-           color: activity.attended ? Colors.green : (isActivityFinished ? Colors.grey.shade600 : Colors.orange.shade700),
-         );
-    }
-
-    // LOGIC 2: XEM TỪ DANH SÁCH CHÍNH
-    final bool showUnregisterButton = activity.isRegistered;
-    final String buttonText = showUnregisterButton ? 'HỦY ĐĂNG KÝ' : 'ĐĂNG KÝ';
-    final Color buttonColor = showUnregisterButton ? Colors.red.shade600 : Colors.green.shade600;
-
-    bool isDisabled = isLoading;
-    String? disabledReason;
-
-    if (!showUnregisterButton) { // Nút "Đăng ký"
-      if (isRegistrationClosed) { isDisabled = true; disabledReason = 'Đã quá hạn đăng ký'; }
-      else if (isFull) { isDisabled = true; disabledReason = 'Đã đủ số lượng'; }
-    } else { // Nút "Hủy đăng ký"
-      if (isRegistrationClosed) { isDisabled = true; disabledReason = 'Đã quá hạn hủy đăng ký'; }
-    }
-     if (isActivityFinished) { isDisabled = true; disabledReason = 'Hoạt động đã kết thúc'; }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ElevatedButton(
-          onPressed: isDisabled ? null : () => _handleToggleRegistration(context, provider, activity),
-          child: isLoading
-              ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-              : Text(buttonText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isDisabled ? Colors.grey.shade500 : buttonColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            disabledBackgroundColor: Colors.grey.shade500,
-            disabledForegroundColor: Colors.white70,
+  Widget _buildSliverAppBar(
+      BuildContext context, ThemeData theme, Activity activity) {
+    return SliverAppBar(
+      expandedHeight: 200,
+      pinned: true,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.colorScheme.primary,
+                theme.colorScheme.primary.withOpacity(0.8),
+                theme.colorScheme.secondary,
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    activity.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        if (isDisabled && disabledReason != null && !isLoading)
-           Padding(
-             padding: const EdgeInsets.only(top: 8.0),
-             child: Text( disabledReason, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700)),
-           ),
+      ),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(ThemeData theme, Activity activity, String? userRole) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.dividerColor,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow(theme, Icons.calendar_today_outlined, 'Thời gian',
+              _formatDateRange(activity.startDate, activity.endDate)),
+          const SizedBox(height: 12),
+          Divider(color: theme.dividerColor),
+          const SizedBox(height: 12),
+          _buildInfoRow(
+              theme,
+              Icons.timer_off_outlined,
+              'Hạn chót ĐK',
+              DateFormat('dd/MM/yyyy HH:mm')
+                  .format(activity.registrationDeadline.toLocal())),
+          const SizedBox(height: 12),
+          Divider(color: theme.dividerColor),
+          const SizedBox(height: 12),
+          _buildInfoRow(
+              theme, Icons.location_on_outlined, 'Địa điểm', activity.location),
+          if (userRole == 'admin' || activity.maxParticipants > 0) ...[
+            const SizedBox(height: 12),
+            Divider(color: theme.dividerColor),
+            const SizedBox(height: 12),
+            _buildInfoRow(theme, Icons.people_outline, 'Số lượng',
+                '${activity.participantCount} / ${activity.maxParticipants > 0 ? activity.maxParticipants : 'Không giới hạn'}'),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+      ThemeData theme, IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: theme.colorScheme.primary, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  // Widget phụ trợ cho trạng thái (chỉ dùng cho isFromHistory = true)
-  Widget _buildStatusChip({required String text, required Color color}) {
-     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-      child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+  Widget _buildBottomAction(
+    BuildContext context,
+    ThemeData theme,
+    Activity activity,
+    ActivityProvider provider,
+    String? userRole,
+  ) {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 12,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: userRole == 'admin'
+            ? _buildAdminAction(context, theme, activity)
+            : _buildStudentAction(context, theme, activity, provider),
+      ),
     );
   }
-}
 
-// Widget phụ trợ _InfoRow (Đã sửa Expanded)
-class _InfoRow extends StatelessWidget {
- final IconData icon;
- final String text;
- const _InfoRow({Key? key, required this.icon, required this.text}) : super(key: key);
+  Widget _buildAdminAction(
+      BuildContext context, ThemeData theme, Activity activity) {
+    return SizedBox(
+      height: 56,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.qr_code_2_sharp, size: 24),
+        label: const Text(
+          'HIỆN QR ĐIỂM DANH',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        onPressed: () => _showQrDialog(context, activity.id, activity.name),
+      ),
+    );
+  }
 
- @override
- Widget build(BuildContext context) {
-   return Row(
-     crossAxisAlignment: CrossAxisAlignment.start, // Align icon and text top
-     children: [
-       Padding( // Add padding to icon for better alignment
-         padding: const EdgeInsets.only(top: 2.0),
-         child: Icon(icon, color: Colors.grey.shade700, size: 20),
-       ),
-       const SizedBox(width: 12),
-       // Cho phép text tự xuống dòng nếu quá dài
-       Expanded(child: Text(text, style: Theme.of(context).textTheme.titleMedium)),
-     ],
-   );
- }
+  Widget _buildStudentAction(
+    BuildContext context,
+    ThemeData theme,
+    Activity activity,
+    ActivityProvider provider,
+  ) {
+    if (isFromHistory) {
+      return _buildStatusChip(
+        theme,
+        text: activity.attended ? 'ĐÃ ĐIỂM DANH' : 'CHƯA ĐIỂM DANH',
+        color: activity.attended ? Colors.green : Colors.orange,
+        icon: activity.attended ? Icons.check_circle : Icons.pending,
+      );
+    }
+
+    final now = DateTime.now();
+    final isRegistrationClosed = now.isAfter(activity.registrationDeadline);
+    final isActivityFinished = now.isAfter(activity.endDate);
+    final isFull = activity.maxParticipants > 0 &&
+        activity.participantCount >= activity.maxParticipants;
+    final isLoading = provider.isActivityLoading(activity.id);
+
+    final showUnregisterButton = activity.isRegistered;
+    bool isDisabled = isLoading;
+    String? disabledReason;
+
+    if (!showUnregisterButton) {
+      if (isRegistrationClosed) {
+        isDisabled = true;
+        disabledReason = 'Đã quá hạn đăng ký';
+      } else if (isFull) {
+        isDisabled = true;
+        disabledReason = 'Đã đủ số lượng';
+      }
+    } else {
+      if (isRegistrationClosed) {
+        isDisabled = true;
+        disabledReason = 'Đã quá hạn hủy đăng ký';
+      }
+    }
+    if (isActivityFinished) {
+      isDisabled = true;
+      disabledReason = 'Hoạt động đã kết thúc';
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 56,
+          child: ElevatedButton(
+            onPressed: isDisabled
+                ? null
+                : () => _handleToggleRegistration(context, provider, activity),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: showUnregisterButton
+                  ? Colors.red.shade600
+                  : theme.colorScheme.primary,
+            ),
+            child: isLoading
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 3),
+                  )
+                : Text(
+                    showUnregisterButton ? 'HỦY ĐĂNG KÝ' : 'ĐĂNG KÝ',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+          ),
+        ),
+        if (isDisabled && disabledReason != null && !isLoading)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              disabledReason,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStatusChip({
+    required ThemeData theme,
+    required String text,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      height: 56,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

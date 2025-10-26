@@ -277,13 +277,12 @@ router.post('/attend', authMiddleware, async (req, res) => {
     // --- LOGIC MỚI: KIỂM TRA QUÁ THỜI GIAN KẾT THÚC HOẠT ĐỘNG ---
     const now = new Date();
     // Nếu thời gian hiện tại LỚN HƠN thời gian kết thúc hoạt động (endDate)
-<<<<<<< HEAD
+
     if (now > activity.endDate) { 
         return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt động. Không thể điểm danh.' });
-=======
+    }
     if (now > activity.endDate) {
 return res.status(400).json({ message: 'Đã quá thời gian kết thúc hoạt động. Không thể điểm danh.' });
->>>>>>> 9e6584d (them ip máy tính để chạy máy thật)
     }
     // -----------------------------------------------------------------
 
